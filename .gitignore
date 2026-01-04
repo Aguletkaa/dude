@@ -1,0 +1,64 @@
+# ===== SEKRETY / DANE =====
+dane.txt
+dude.db
+firebase-adminsdk.json
+google-services.json
+.env
+
+# ===== LOGIKA, KTÓREJ NIE CHCESZ WRZUCAĆ =====
+main.py
+mikrotik_client.py
+
+# ===== PYTHON =====
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# ===== CACHE / BUILD =====
+dist/
+build/
+.cache/
+
+# ===== LOGI =====
+*.log
+
+# ===== BAZY DANYCH =====
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== SYSTEM =====
+.DS_Store
+Thumbs.db
+
+# ===== IDE =====
+.vscode/
+.idea/
+
+# Dependencies
+NetworkMonitor/node_modules/
+network-monitor-backend/node_modules/
+
+# Build folders
+NetworkMonitor/android/app/build/
+NetworkMonitor/android/app/.cxx/
+NetworkMonitor/android/.gradle/
+NetworkMonitor/ios/build/
+NetworkMonitor/ios/Pods/
+
+# Metro
+NetworkMonitor/.metro-health-check*
+
+# Bundle
+NetworkMonitor/android/app/src/main/assets/
+
+# Other
+*.log
+.DS_Store
+NetworkMonitor/.bundle/"network-monitor-backend/dude.db" 
+
+# Android
+**/android/app/debug.keystore
