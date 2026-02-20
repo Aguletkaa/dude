@@ -1,4 +1,3 @@
-// src/screens/NotificationsSettingsScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -38,23 +37,22 @@ const NotificationsSettingsScreen = ({ navigation }) => {
   };
 
   const handleSave = async () => {
-    // Walidacja
     if (settings.email_enabled && !settings.email_address.includes('@')) {
-      Alert.alert('Błąd', 'Podaj prawidłowy adres email');
+      Alert.alert('Blad', 'Podaj prawidlowy adres email');
       return;
     }
 
     if (settings.sms_enabled && settings.sms_number.length < 9) {
-      Alert.alert('Błąd', 'Podaj prawidłowy numer telefonu');
+      Alert.alert('Blad', 'Podaj prawidlowy numer telefonu');
       return;
     }
 
     const success = await NotificationService.saveNotificationSettings(settings);
-    
+
     if (success) {
-      Alert.alert('Sukces', 'Ustawienia powiadomień zostały zapisane');
+      Alert.alert('Sukces', 'Ustawienia powiadomien zostaly zapisane');
     } else {
-      Alert.alert('Błąd', 'Nie udało się zapisać ustawień');
+      Alert.alert('Blad', 'Nie udalo sie zapisac ustawien');
     }
   };
 
@@ -64,15 +62,24 @@ const NotificationsSettingsScreen = ({ navigation }) => {
       'To jest testowe powiadomienie z aplikacji Network Monitor',
       { test: true }
     );
-    Alert.alert('Wysłano', 'Powiadomienie testowe zostało wysłane');
+    Alert.alert('Wyslano', 'Powiadomienie testowe zostalo wyslane');
   };
 
   return (
     <ScrollView style={styles.container}>
-      {/* Push Notifications */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Powiadomienia</Text>
+          <Text style={styles.headerSubtitle}>Konfiguracja alertow</Text>
+        </View>
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Powiadomienia Push</Text>
-        
+
         <View style={styles.card}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -92,20 +99,16 @@ const NotificationsSettingsScreen = ({ navigation }) => {
             />
           </View>
 
-          <TouchableOpacity
-            style={styles.testButton}
-            onPress={handleTestNotification}
-          >
+          <TouchableOpacity style={styles.testButton} onPress={handleTestNotification}>
             <Icon name="send" size={18} color={COLORS.primary} />
-            <Text style={styles.testButtonText}>Wyślij testowe powiadomienie</Text>
+            <Text style={styles.testButtonText}>Wyslij testowe powiadomienie</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Email Notifications */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Powiadomienia Email</Text>
-        
+        <Text style={styles.sectionTitle}>Email</Text>
+
         <View style={styles.card}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -113,7 +116,7 @@ const NotificationsSettingsScreen = ({ navigation }) => {
               <View style={styles.settingText}>
                 <Text style={styles.settingLabel}>Powiadomienia Email</Text>
                 <Text style={styles.settingDescription}>
-                  Otrzymuj emaile o alertach krytycznych
+                  Wyslij alerty na adres email
                 </Text>
               </View>
             </View>
@@ -121,7 +124,6 @@ const NotificationsSettingsScreen = ({ navigation }) => {
               value={settings.email_enabled}
               onValueChange={(value) => setSettings({...settings, email_enabled: value})}
               trackColor={{ false: COLORS.border, true: COLORS.primary }}
-              thumbColor={settings.email_enabled ? COLORS.text : COLORS.textMuted}
             />
           </View>
 
@@ -131,18 +133,16 @@ const NotificationsSettingsScreen = ({ navigation }) => {
               placeholder="Adres email"
               placeholderTextColor={COLORS.textMuted}
               value={settings.email_address}
-              onChangeText={(text) => setSettings({...settings, email_address: text})}
+              onChangeText={(value) => setSettings({...settings, email_address: value})}
               keyboardType="email-address"
-              autoCapitalize="none"
             />
           )}
         </View>
       </View>
 
-      {/* SMS Notifications */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Powiadomienia SMS</Text>
-        
+        <Text style={styles.sectionTitle}>SMS</Text>
+
         <View style={styles.card}>
           <View style={styles.settingRow}>
             <View style={styles.settingInfo}>
@@ -150,7 +150,7 @@ const NotificationsSettingsScreen = ({ navigation }) => {
               <View style={styles.settingText}>
                 <Text style={styles.settingLabel}>Powiadomienia SMS</Text>
                 <Text style={styles.settingDescription}>
-                  Otrzymuj SMS o alertach krytycznych
+                  Wyslij alerty SMS na numer telefonu
                 </Text>
               </View>
             </View>
@@ -158,17 +158,16 @@ const NotificationsSettingsScreen = ({ navigation }) => {
               value={settings.sms_enabled}
               onValueChange={(value) => setSettings({...settings, sms_enabled: value})}
               trackColor={{ false: COLORS.border, true: COLORS.primary }}
-              thumbColor={settings.sms_enabled ? COLORS.text : COLORS.textMuted}
             />
           </View>
 
           {settings.sms_enabled && (
             <TextInput
               style={styles.input}
-              placeholder="Numer telefonu (np. +48123456789)"
+              placeholder="Numer telefonu"
               placeholderTextColor={COLORS.textMuted}
               value={settings.sms_number}
-              onChangeText={(text) => setSettings({...settings, sms_number: text})}
+              onChangeText={(value) => setSettings({...settings, sms_number: value})}
               keyboardType="phone-pad"
             />
           )}
@@ -177,82 +176,18 @@ const NotificationsSettingsScreen = ({ navigation }) => {
             <View style={styles.warningBox}>
               <Icon name="info" size={20} color={COLORS.warning} />
               <Text style={styles.warningText}>
-                Powiadomienia SMS mogą generować dodatkowe koszty
+                Funkcja SMS wymaga konfiguracji bramki SMS po stronie serwera
               </Text>
             </View>
           )}
-        </View>
-      </View>
-{/* Zaawansowane ustawienia */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Zaawansowane</Text>
-        
-        <View style={styles.card}>
-          {/* Repeat Interval */}
-          <View style={styles.settingRow}>
-            <View style={styles.settingInfo}>
-              <Icon name="repeat" size={24} color={COLORS.primary} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Powtarzaj powiadomienia</Text>
-                <Text style={styles.settingDescription}>
-                  Co {settings.repeat_interval} min (0 = tylko raz)
-                </Text>
-              </View>
-            </View>
-          </View>
-          
-          <TextInput
-            style={styles.input}
-            placeholder="Interwał (minuty)"
-            placeholderTextColor={COLORS.textMuted}
-            value={String(settings.repeat_interval)}
-            onChangeText={(text) => setSettings({...settings, repeat_interval: parseInt(text) || 0})}
-            keyboardType="number-pad"
-          />
 
-          {/* Quiet Hours */}
           <View style={[styles.settingRow, {marginTop: 20}]}>
             <View style={styles.settingInfo}>
-              <Icon name="nightlight" size={24} color={COLORS.primary} />
-              <View style={styles.settingText}>
-                <Text style={styles.settingLabel}>Tryb cichy</Text>
-                <Text style={styles.settingDescription}>
-                  Wyłącz powiadomienia w nocy
-                </Text>
-              </View>
-            </View>
-            <Switch
-              value={settings.quiet_hours_enabled}
-              onValueChange={(value) => setSettings({...settings, quiet_hours_enabled: value})}
-              trackColor={{ false: COLORS.border, true: COLORS.primary }}
-            />
-          </View>
-
-          {settings.quiet_hours_enabled && (
-            <View style={{flexDirection: 'row', gap: 12, marginTop: 12}}>
-              <TextInput
-                style={[styles.input, {flex: 1, marginTop: 0}]}
-                placeholder="Start (HH:MM)"
-                value={settings.quiet_hours_start}
-                onChangeText={(text) => setSettings({...settings, quiet_hours_start: text})}
-              />
-              <TextInput
-                style={[styles.input, {flex: 1, marginTop: 0}]}
-                placeholder="Koniec (HH:MM)"
-                value={settings.quiet_hours_end}
-                onChangeText={(text) => setSettings({...settings, quiet_hours_end: text})}
-              />
-            </View>
-          )}
-
-          {/* Recovery notification */}
-          <View style={[styles.settingRow, {marginTop: 20}]}>
-            <View style={styles.settingInfo}>
-              <Icon name="check-circle" size={24} color={COLORS.success} />
+              <Icon name="check-circle" size={24} color={COLORS.online} />
               <View style={styles.settingText}>
                 <Text style={styles.settingLabel}>Powiadom o naprawie</Text>
                 <Text style={styles.settingDescription}>
-                  Gdy urządzenie wróci do pracy
+                  Gdy urzadzenie wroci do pracy
                 </Text>
               </View>
             </View>
@@ -264,8 +199,7 @@ const NotificationsSettingsScreen = ({ navigation }) => {
           </View>
         </View>
       </View>
-      
-      {/* Save Button */}
+
       <View style={styles.section}>
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
           <Icon name="save" size={20} color={COLORS.text} />
@@ -280,6 +214,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: COLORS.backgroundSecondary,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerText: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   section: {
     padding: 16,

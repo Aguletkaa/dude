@@ -1,4 +1,3 @@
-// src/screens/DevicesScreen.js
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
@@ -52,12 +51,11 @@ const DevicesScreen = ({ navigation }) => {
     }
   }, []);
 
-  // Pierwsze ładowanie + auto-refresh co 30s
   useEffect(() => {
     loadDevices();
 
     intervalRef.current = setInterval(() => {
-      loadDevices(true); // silent = nie pokazuj spinnera
+      loadDevices(true);
     }, 30000);
 
     return () => {
@@ -65,36 +63,27 @@ const DevicesScreen = ({ navigation }) => {
     };
   }, [loadDevices]);
 
-  // Odśwież gdy użytkownik wraca na ten ekran
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('focus', () => {
-      loadDevices(true);
-    });
-    return unsubscribe;
-  }, [navigation, loadDevices]);
-
-  // Filtrowanie
   useEffect(() => {
     let filtered = devices;
 
     if (filterStatus !== 'all') {
-      filtered = filtered.filter(device => device.status === filterStatus);
+      filtered = filtered.filter(d => d.status === filterStatus);
     }
 
     if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(device =>
-        device.name.toLowerCase().includes(query) ||
-        device.ip.includes(query) ||
-        (device.location && device.location.toLowerCase().includes(query)) ||
-        (device.model && device.model.toLowerCase().includes(query))
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter(d =>
+        d.name.toLowerCase().includes(q) ||
+        d.ip.includes(q) ||
+        (d.location && d.location.toLowerCase().includes(q))
       );
     }
 
     setFilteredDevices(filtered);
-  }, [filterStatus, searchQuery, devices]);
+  }, [devices, filterStatus, searchQuery]);
 
   const onRefresh = useCallback(() => {
+    setRefreshing(true);
     loadDevices();
   }, [loadDevices]);
 
@@ -109,17 +98,16 @@ const DevicesScreen = ({ navigation }) => {
 
   const getDeviceIcon = (type) => {
     switch (type) {
-      case 'access_point': return 'wifi';
+      case 'antenna': return 'cell-tower';
       case 'router': return 'router';
       case 'switch': return 'device-hub';
-      case 'client': return 'computer';
+      case 'access_point': return 'wifi';
       default: return 'devices';
     }
   };
 
   const formatUptime = (uptime) => {
-    if (!uptime) return 'N/A';
-    if (typeof uptime === 'string' && uptime.includes('d')) return uptime;
+    if (typeof uptime === 'string') return uptime;
     if (typeof uptime === 'number') {
       const days = Math.floor(uptime / 86400);
       const hours = Math.floor((uptime % 86400) / 3600);
@@ -136,7 +124,6 @@ const DevicesScreen = ({ navigation }) => {
     return `${signal} dBm`;
   };
 
-  // Liczniki statusów
   const statusCounts = {
     all: devices.length,
     online: devices.filter(d => d.status === 'online').length,
@@ -199,7 +186,7 @@ const DevicesScreen = ({ navigation }) => {
 
           {item.signal !== null && item.signal !== undefined && (
             <View style={styles.detailItemSmall}>
-              <Text style={styles.detailLabel}>Sygnał</Text>
+              <Text style={styles.detailLabel}>Sygnal</Text>
               <Text style={[styles.detailValue, {
                 color: item.signal > -60 ? COLORS.online :
                        item.signal > -70 ? COLORS.warning : COLORS.offline
@@ -235,13 +222,16 @@ const DevicesScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Urządzenia</Text>
-        <Text style={styles.headerSubtitle}>{filteredDevices.length} urządzeń</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Urzadzenia</Text>
+          <Text style={styles.headerSubtitle}>{filteredDevices.length} urzadzen</Text>
+        </View>
       </View>
 
-      {/* Search */}
       <View style={styles.searchBox}>
         <Icon name="search" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
         <TextInput
@@ -258,7 +248,6 @@ const DevicesScreen = ({ navigation }) => {
         )}
       </View>
 
-      {/* Filters */}
       <View style={styles.filterRow}>
         {[
           { key: 'all', label: 'Wszystkie' },
@@ -284,7 +273,6 @@ const DevicesScreen = ({ navigation }) => {
         ))}
       </View>
 
-      {/* Device List */}
       <FlatList
         data={filteredDevices}
         renderItem={renderDevice}
@@ -302,11 +290,11 @@ const DevicesScreen = ({ navigation }) => {
           <View style={styles.emptyState}>
             <Icon name="devices-other" size={64} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>
-              {searchQuery ? 'Nie znaleziono urządzeń' : 'Brak urządzeń'}
+              {searchQuery ? 'Nie znaleziono urzadzen' : 'Brak urzadzen'}
             </Text>
             {searchQuery && (
               <TouchableOpacity style={styles.clearButton} onPress={() => setSearchQuery('')}>
-                <Text style={styles.clearButtonText}>Wyczyść wyszukiwanie</Text>
+                <Text style={styles.clearButtonText}>Wyczysc wyszukiwanie</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -328,18 +316,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: COLORS.backgroundSecondary,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   searchBox: {
     flexDirection: 'row',

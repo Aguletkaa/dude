@@ -1,4 +1,3 @@
-// src/screens/StatsScreen.js - Statystyki sieci
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -6,18 +5,17 @@ import {
   ScrollView,
   StyleSheet,
   RefreshControl,
-  ActivityIndicator,
   TouchableOpacity,
+  ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { getDevices } from '../api/client';
 import COLORS from '../constants/colors';
-
-const API_URL = 'http://10.0.2.2:8000';
 
 const StatsScreen = ({ navigation }) => {
   const [stats, setStats] = useState(null);
-  const [topDevices, setTopDevices] = useState([]);
+  const [topDevices, setTopDevices] = useState({});
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -27,57 +25,35 @@ const StatsScreen = ({ navigation }) => {
 
   const loadStats = async () => {
     try {
-      const token = await AsyncStorage.getItem('auth_token') || 
-                    await AsyncStorage.getItem('access_token');
+      const data = await getDevices();
 
-      // Pobierz ogólne statystyki
-      const statsResponse = await fetch(`${API_URL}/dashboard/stats`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const statsData = await statsResponse.json();
+      const online = data.filter(d => d.status === 'online');
+      const offline = data.filter(d => d.status === 'offline');
 
-      // POPRAWKA: było /api/devices - endpoint nie istnieje, używamy /devices
-      const devicesResponse = await fetch(`${API_URL}/devices`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const devicesData = await devicesResponse.json();
+      const statsData = {
+        total_devices: data.length,
+        online_devices: online.length,
+        offline_devices: offline.length,
+        availability: data.length > 0 ? Math.round((online.length / data.length) * 100) : 0,
+      };
 
-      // Zabezpieczenie gdyby devicesData nie była tablicą
-      const devices = Array.isArray(devicesData) ? devicesData : [];
+      const devicesWithCPU = data.filter(d => d.cpu && d.cpu > 0).sort((a, b) => b.cpu - a.cpu);
+      const topCPU = devicesWithCPU.slice(0, 5);
 
-      // TOP 5 urządzeń z największym CPU
-      const topCPU = [...devices]
-        .filter(d => d.cpu > 0)
-        .sort((a, b) => b.cpu - a.cpu)
-        .slice(0, 5);
+      const devicesWithSignal = data.filter(d => d.signal && d.signal !== 0);
+      const topSignal = [...devicesWithSignal].sort((a, b) => Math.abs(b.signal) - Math.abs(a.signal)).slice(0, 5);
 
-      // TOP 5 urządzeń z najsłabszym sygnałem
-      const topSignal = [...devices]
-        .filter(d => d.signal && d.signal < 0)
-        .sort((a, b) => a.signal - b.signal)
-        .slice(0, 5);
+      const devicesWithOutages = data.filter(d => d.outageCount !== undefined && d.outageCount !== null);
+      const topMostOutages = [...devicesWithOutages].sort((a, b) => b.outageCount - a.outageCount).slice(0, 5);
+      const topLeastOutages = [...devicesWithOutages].sort((a, b) => a.outageCount - b.outageCount).slice(0, 5);
 
-      // TOP 5 urządzeń z NAJWIĘKSZĄ liczbą awarii
-      const topMostOutages = [...devices]
-        .filter(d => d.outageCount !== undefined && d.outageCount > 0)
-        .sort((a, b) => b.outageCount - a.outageCount)
-        .slice(0, 5);
-
-      // TOP 5 urządzeń z NAJMNIEJSZĄ liczbą awarii
-      const topLeastOutages = [...devices]
-        .filter(d => d.outageCount !== undefined)
-        .sort((a, b) => a.outageCount - b.outageCount)
-        .slice(0, 5);
-
-      // Średni sygnał
-      const devicesWithSignal = devices.filter(d => d.signal && d.signal < 0);
       const avgSignal = devicesWithSignal.length > 0
         ? Math.abs(devicesWithSignal.reduce((sum, d) => sum + d.signal, 0) / devicesWithSignal.length).toFixed(0)
         : 0;
 
       setStats(statsData);
-      setTopDevices({ 
-        cpu: topCPU, 
+      setTopDevices({
+        cpu: topCPU,
         signal: topSignal,
         mostOutages: topMostOutages,
         leastOutages: topLeastOutages,
@@ -108,28 +84,31 @@ const StatsScreen = ({ navigation }) => {
     <ScrollView
       style={styles.container}
       refreshControl={
-        <RefreshControl 
-          refreshing={refreshing} 
+        <RefreshControl
+          refreshing={refreshing}
           onRefresh={onRefresh}
           tintColor={COLORS.primary}
         />
       }
     >
-      {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Statystyki</Text>
-        <Text style={styles.headerSubtitle}>Analiza sieci</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Statystyki</Text>
+          <Text style={styles.headerSubtitle}>Analiza sieci</Text>
+        </View>
       </View>
 
-      {/* Ogólne statystyki */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Przegląd sieci</Text>
-        
+        <Text style={styles.sectionTitle}>Przeglad sieci</Text>
+
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Icon name="router" size={32} color={COLORS.primary} />
             <Text style={styles.statValue}>{stats?.total_devices || 0}</Text>
-            <Text style={styles.statLabel}>Wszystkie urządzenia</Text>
+            <Text style={styles.statLabel}>Wszystkie urzadzenia</Text>
           </View>
 
           <View style={styles.statCard}>
@@ -153,19 +132,18 @@ const StatsScreen = ({ navigation }) => {
             <Text style={styles.statValue}>
               {topDevices.avgSignal ? `-${topDevices.avgSignal}` : '0'}
             </Text>
-            <Text style={styles.statLabel}>Średni sygnał dBm</Text>
+            <Text style={styles.statLabel}>Sredni sygnal (dBm)</Text>
           </View>
         </View>
       </View>
 
-      {/* TOP urządzenia - najwyższe CPU */}
       {topDevices.cpu && topDevices.cpu.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Icon name="memory" size={24} color={COLORS.warning} />
-            <Text style={styles.sectionTitle}>Najwyższe obciążenie CPU</Text>
+            <Text style={styles.sectionTitle}>Najwyzsze CPU</Text>
           </View>
-          
+
           {topDevices.cpu.map((device, index) => (
             <TouchableOpacity
               key={device.id}
@@ -180,7 +158,9 @@ const StatsScreen = ({ navigation }) => {
                 <Text style={styles.deviceIP}>{device.ip}</Text>
               </View>
               <View style={styles.deviceMetric}>
-                <Text style={[styles.metricValue, { color: COLORS.warning }]}>{device.cpu}%</Text>
+                <Text style={[styles.metricValue, { color: device.cpu > 80 ? COLORS.offline : COLORS.warning }]}>
+                  {device.cpu}%
+                </Text>
                 <Text style={styles.metricLabel}>CPU</Text>
               </View>
             </TouchableOpacity>
@@ -188,14 +168,13 @@ const StatsScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* TOP urządzenia - najsłabszy sygnał */}
       {topDevices.signal && topDevices.signal.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Icon name="wifi" size={24} color={COLORS.offline} />
-            <Text style={styles.sectionTitle}>Najsłabszy sygnał</Text>
+            <Icon name="signal-cellular-alt" size={24} color={COLORS.offline} />
+            <Text style={styles.sectionTitle}>Najslabszy sygnal</Text>
           </View>
-          
+
           {topDevices.signal.map((device, index) => (
             <TouchableOpacity
               key={device.id}
@@ -210,22 +189,23 @@ const StatsScreen = ({ navigation }) => {
                 <Text style={styles.deviceIP}>{device.ip}</Text>
               </View>
               <View style={styles.deviceMetric}>
-                <Text style={[styles.metricValue, { color: COLORS.offline }]}>{device.signal} dBm</Text>
-                <Text style={styles.metricLabel}>Signal</Text>
+                <Text style={[styles.metricValue, { color: COLORS.offline }]}>
+                  {device.signal} dBm
+                </Text>
+                <Text style={styles.metricLabel}>Sygnal</Text>
               </View>
             </TouchableOpacity>
           ))}
         </View>
       )}
 
-      {/* TOP urządzenia - najwięcej awarii */}
       {topDevices.mostOutages && topDevices.mostOutages.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Icon name="error" size={24} color={COLORS.offline} />
-            <Text style={styles.sectionTitle}>Najwięcej awarii</Text>
+            <Icon name="warning" size={24} color={COLORS.offline} />
+            <Text style={styles.sectionTitle}>Najwiecej awarii</Text>
           </View>
-          
+
           {topDevices.mostOutages.map((device, index) => (
             <TouchableOpacity
               key={device.id}
@@ -248,14 +228,13 @@ const StatsScreen = ({ navigation }) => {
         </View>
       )}
 
-      {/* TOP urządzenia - najmniej awarii */}
       {topDevices.leastOutages && topDevices.leastOutages.length > 0 && (
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Icon name="check-circle" size={24} color={COLORS.online} />
             <Text style={styles.sectionTitle}>Najmniej awarii</Text>
           </View>
-          
+
           {topDevices.leastOutages.map((device, index) => (
             <TouchableOpacity
               key={device.id}
@@ -293,18 +272,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: COLORS.backgroundSecondary,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   section: {
     padding: 16,

@@ -1,4 +1,3 @@
-// src/screens/DevicePickerScreen.js - Wybór urządzenia do wykresów
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -27,7 +26,7 @@ const DevicePickerScreen = ({ navigation }) => {
 
   useEffect(() => {
     if (searchQuery) {
-      const filtered = devices.filter(d => 
+      const filtered = devices.filter(d =>
         d.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         d.ip.includes(searchQuery)
       );
@@ -39,7 +38,7 @@ const DevicePickerScreen = ({ navigation }) => {
 
   const loadDevices = async () => {
     try {
-      const token = await AsyncStorage.getItem('auth_token') || 
+      const token = await AsyncStorage.getItem('auth_token') ||
                     await AsyncStorage.getItem('access_token');
 
       const response = await fetch(`${API_URL}/devices`, {
@@ -47,7 +46,6 @@ const DevicePickerScreen = ({ navigation }) => {
       });
 
       const data = await response.json();
-      // Filtruj tylko urządzenia Ubiquiti (mają metryki)
       const ubiquitiDevices = data.filter(d => d.ip.startsWith('192.168.10.'));
       setDevices(ubiquitiDevices);
       setFilteredDevices(ubiquitiDevices);
@@ -70,7 +68,7 @@ const DevicePickerScreen = ({ navigation }) => {
         styles.statusDot,
         { backgroundColor: item.status === 'online' ? COLORS.online : COLORS.offline }
       ]} />
-      
+
       <View style={styles.deviceInfo}>
         <Text style={styles.deviceName}>{item.name}</Text>
         <Text style={styles.deviceIP}>{item.ip}</Text>
@@ -91,18 +89,20 @@ const DevicePickerScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Wybierz urządzenie</Text>
-        <Text style={styles.headerSubtitle}>
-          {filteredDevices.length} urządzeń
-        </Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Wybierz urzadzenie</Text>
+          <Text style={styles.headerSubtitle}>{filteredDevices.length} urzadzen Ubiquiti</Text>
+        </View>
       </View>
 
-      {/* Search */}
       <View style={styles.searchContainer}>
         <Icon name="search" size={20} color={COLORS.textMuted} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Szukaj urządzenia..."
+          placeholder="Szukaj urzadzenia..."
           placeholderTextColor={COLORS.textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -122,7 +122,7 @@ const DevicePickerScreen = ({ navigation }) => {
         ListEmptyComponent={
           <View style={styles.emptyState}>
             <Icon name="router" size={64} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>Brak urządzeń</Text>
+            <Text style={styles.emptyText}>Brak urzadzen</Text>
           </View>
         }
       />
@@ -142,18 +142,34 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: COLORS.backgroundSecondary,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerText: {
+    flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   searchContainer: {
     flexDirection: 'row',

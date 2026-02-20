@@ -1,4 +1,3 @@
-// src/screens/SettingsScreen.js - Ustawienia użytkownika (POPRAWIONE)
 import React, { useState } from 'react';
 import {
   View,
@@ -19,18 +18,15 @@ const API_URL = 'http://10.0.2.2:8000';
 const SettingsScreen = ({ navigation }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
-  
-  // Change Password
+
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
-  // Change Profile
+
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [passwordForProfile, setPasswordForProfile] = useState('');
-  
-  // Change Username
+
   const [newUsername, setNewUsername] = useState('');
   const [passwordForUsername, setPasswordForUsername] = useState('');
 
@@ -55,27 +51,26 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Błąd', 'Wypełnij wszystkie pola');
+      Alert.alert('Blad', 'Wypelnij wszystkie pola');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Błąd', 'Nowe hasła nie pasują do siebie');
+      Alert.alert('Blad', 'Nowe hasla nie pasuja do siebie');
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert('Błąd', 'Nowe hasło musi mieć min. 6 znaków');
+      Alert.alert('Blad', 'Nowe haslo musi miec min. 6 znakow');
       return;
     }
 
     setLoading(true);
-
     try {
-      const token = await AsyncStorage.getItem('auth_token') || 
+      const token = await AsyncStorage.getItem('auth_token') ||
                     await AsyncStorage.getItem('access_token');
 
-      const response = await fetch(`${API_URL}/api/user/change-password`, {
+      const response = await fetch(`${API_URL}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -87,208 +82,67 @@ const SettingsScreen = ({ navigation }) => {
         }),
       });
 
-      const data = await response.json();
-
       if (response.ok) {
-        Alert.alert('Sukces', 'Hasło zostało zmienione');
+        Alert.alert('Sukces', 'Haslo zostalo zmienione');
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
-        Alert.alert('Błąd', data.detail || 'Nie udało się zmienić hasła');
+        const data = await response.json();
+        Alert.alert('Blad', data.detail || 'Nie udalo sie zmienic hasla');
       }
     } catch (error) {
-      Alert.alert('Błąd', 'Błąd połączenia z serwerem');
-      console.error(error);
+      Alert.alert('Blad', 'Blad polaczenia z serwerem');
     } finally {
       setLoading(false);
     }
   };
 
   const handleChangeProfile = async () => {
-    if (!newUsername || !fullName || !email || !passwordForProfile) {
-      Alert.alert('Błąd', 'Wypełnij wszystkie pola');
+    if (!passwordForProfile) {
+      Alert.alert('Blad', 'Podaj haslo aby potwierdzic zmiany');
       return;
     }
 
-    if (newUsername.length < 3) {
-      Alert.alert('Błąd', 'Nazwa użytkownika musi mieć min. 3 znaki');
-      return;
-    }
+    setLoading(true);
+    try {
+      const token = await AsyncStorage.getItem('auth_token') ||
+                    await AsyncStorage.getItem('access_token');
 
-    if (fullName.length < 3) {
-      Alert.alert('Błąd', 'Imię i nazwisko musi mieć min. 3 znaki');
-      return;
-    }
-
-    if (!email.includes('@')) {
-      Alert.alert('Błąd', 'Podaj prawidłowy email');
-      return;
-    }
-
-    // Sprawdź czy username się zmienił
-    const usernameChanged = newUsername !== user?.username;
-
-    Alert.alert(
-      'Potwierdź',
-      usernameChanged 
-        ? `Zmiana nazwy użytkownika spowoduje wylogowanie. Kontynuować?`
-        : 'Czy na pewno zmienić dane profilu?',
-      [
-        { text: 'Anuluj', style: 'cancel' },
-        {
-          text: 'Zmień',
-          onPress: async () => {
-            setLoading(true);
-
-            try {
-              const token = await AsyncStorage.getItem('auth_token') || 
-                            await AsyncStorage.getItem('access_token');
-
-              // Jeśli username się zmienił, użyj endpointu change-username
-              if (usernameChanged) {
-                const response = await fetch(`${API_URL}/api/user/change-username`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                    new_username: newUsername,
-                    password: passwordForProfile,
-                  }),
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                  Alert.alert('Sukces', 'Dane zostały zmienione. Zaloguj się ponownie.');
-                  
-                  // Wyloguj
-                  await AsyncStorage.clear();
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'Login' }],
-                  });
-                } else {
-                  Alert.alert('Błąd', data.detail || 'Nie udało się zmienić danych');
-                }
-              } else {
-                // Tylko zmiana profilu (bez username)
-                const response = await fetch(`${API_URL}/api/user/change-profile`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`,
-                  },
-                  body: JSON.stringify({
-                    full_name: fullName,
-                    email: email,
-                    password: passwordForProfile,
-                  }),
-                });
-
-                const data = await response.json();
-
-                if (response.ok) {
-                  // Zaktualizuj dane użytkownika lokalnie
-                  await AsyncStorage.setItem('user', JSON.stringify({
-                    ...user,
-                    full_name: fullName,
-                    email: email,
-                  }));
-
-                  setUser({
-                    ...user,
-                    full_name: fullName,
-                    email: email,
-                  });
-
-                  Alert.alert('Sukces', 'Dane profilu zostały zmienione');
-                  setPasswordForProfile('');
-                } else {
-                  Alert.alert('Błąd', data.detail || 'Nie udało się zmienić danych');
-                }
-              }
-            } catch (error) {
-              Alert.alert('Błąd', 'Błąd połączenia z serwerem');
-              console.error(error);
-            } finally {
-              setLoading(false);
-            }
-          },
+      const response = await fetch(`${API_URL}/auth/update-profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
         },
-      ]
-    );
-  };
+        body: JSON.stringify({
+          full_name: fullName,
+          email: email,
+          password: passwordForProfile,
+        }),
+      });
 
-  const handleChangeUsername = async () => {
-    if (!newUsername || !passwordForUsername) {
-      Alert.alert('Błąd', 'Wypełnij wszystkie pola');
-      return;
+      if (response.ok) {
+        const updatedUser = await response.json();
+        await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        setPasswordForProfile('');
+        Alert.alert('Sukces', 'Profil zostal zaktualizowany');
+      } else {
+        const data = await response.json();
+        Alert.alert('Blad', data.detail || 'Nie udalo sie zaktualizowac profilu');
+      }
+    } catch (error) {
+      Alert.alert('Blad', 'Blad polaczenia z serwerem');
+    } finally {
+      setLoading(false);
     }
-
-    if (newUsername.length < 3) {
-      Alert.alert('Błąd', 'Nazwa użytkownika musi mieć min. 3 znaki');
-      return;
-    }
-
-    Alert.alert(
-      'Potwierdź',
-      `Czy na pewno zmienić nazwę użytkownika na "${newUsername}"? Zostaniesz wylogowany.`,
-      [
-        { text: 'Anuluj', style: 'cancel' },
-        {
-          text: 'Zmień',
-          onPress: async () => {
-            setLoading(true);
-
-            try {
-              const token = await AsyncStorage.getItem('auth_token') || 
-                            await AsyncStorage.getItem('access_token');
-
-              const response = await fetch(`${API_URL}/api/user/change-username`, {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                  new_username: newUsername,
-                  password: passwordForUsername,
-                }),
-              });
-
-              const data = await response.json();
-
-              if (response.ok) {
-                Alert.alert('Sukces', 'Nazwa użytkownika została zmieniona. Zaloguj się ponownie.');
-                
-                // Wyloguj
-                await AsyncStorage.clear();
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
-              } else {
-                Alert.alert('Błąd', data.detail || 'Nie udało się zmienić nazwy użytkownika');
-              }
-            } catch (error) {
-              Alert.alert('Błąd', 'Błąd połączenia z serwerem');
-              console.error(error);
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
   };
 
   const handleLogout = () => {
     Alert.alert(
-      'Wyloguj',
-      'Czy na pewno chcesz się wylogować?',
+      'Wylogowanie',
+      'Czy na pewno chcesz sie wylogowac?',
       [
         { text: 'Anuluj', style: 'cancel' },
         {
@@ -308,15 +162,24 @@ const SettingsScreen = ({ navigation }) => {
 
   return (
     <ScrollView style={styles.container}>
-      {/* User Info */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.headerTitle}>Ustawienia</Text>
+          <Text style={styles.headerSubtitle}>Konto uzytkownika</Text>
+        </View>
+      </View>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Informacje o koncie</Text>
-        
+
         <View style={styles.infoCard}>
           <View style={styles.infoRow}>
             <Icon name="person" size={24} color={COLORS.primary} />
             <View style={styles.infoText}>
-              <Text style={styles.infoLabel}>Nazwa użytkownika</Text>
+              <Text style={styles.infoLabel}>Nazwa uzytkownika</Text>
               <Text style={styles.infoValue}>{user?.username || 'Loading...'}</Text>
             </View>
           </View>
@@ -324,7 +187,7 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.infoRow}>
             <Icon name="badge" size={24} color={COLORS.primary} />
             <View style={styles.infoText}>
-              <Text style={styles.infoLabel}>Imię i nazwisko</Text>
+              <Text style={styles.infoLabel}>Imie i nazwisko</Text>
               <Text style={styles.infoValue}>{user?.full_name || 'Nie ustawiono'}</Text>
             </View>
           </View>
@@ -339,29 +202,24 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Change Profile */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Zmień dane profilu</Text>
-        
+        <Text style={styles.sectionTitle}>Zmien dane profilu</Text>
+
         <View style={styles.card}>
           <TextInput
             style={styles.input}
-            placeholder="Nazwa użytkownika (min. 3 znaki)"
+            placeholder="Nazwa uzytkownika (min. 3 znaki)"
             placeholderTextColor={COLORS.textMuted}
             value={newUsername}
             onChangeText={setNewUsername}
-            autoCapitalize="none"
           />
-
           <TextInput
             style={styles.input}
-            placeholder="Imię i nazwisko"
+            placeholder="Imie i nazwisko"
             placeholderTextColor={COLORS.textMuted}
             value={fullName}
             onChangeText={setFullName}
-            autoCapitalize="words"
           />
-
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -369,19 +227,15 @@ const SettingsScreen = ({ navigation }) => {
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
-            autoCapitalize="none"
           />
-
           <TextInput
             style={styles.input}
-            placeholder="Potwierdź hasłem"
+            placeholder="Aktualne haslo (wymagane)"
             placeholderTextColor={COLORS.textMuted}
-            secureTextEntry
             value={passwordForProfile}
             onChangeText={setPasswordForProfile}
-            autoCapitalize="none"
+            secureTextEntry
           />
-
           <TouchableOpacity
             style={[styles.button, styles.primaryButton]}
             onPress={handleChangeProfile}
@@ -391,7 +245,7 @@ const SettingsScreen = ({ navigation }) => {
               <ActivityIndicator color={COLORS.text} />
             ) : (
               <>
-                <Icon name="edit" size={20} color={COLORS.text} />
+                <Icon name="save" size={20} color={COLORS.text} />
                 <Text style={styles.buttonText}>Zapisz zmiany</Text>
               </>
             )}
@@ -399,41 +253,34 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Change Password */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Zmień hasło</Text>
-        
+        <Text style={styles.sectionTitle}>Zmien haslo</Text>
+
         <View style={styles.card}>
           <TextInput
             style={styles.input}
-            placeholder="Stare hasło"
+            placeholder="Aktualne haslo"
             placeholderTextColor={COLORS.textMuted}
-            secureTextEntry
             value={oldPassword}
             onChangeText={setOldPassword}
-            autoCapitalize="none"
+            secureTextEntry
           />
-
           <TextInput
             style={styles.input}
-            placeholder="Nowe hasło (min. 6 znaków)"
+            placeholder="Nowe haslo (min. 6 znakow)"
             placeholderTextColor={COLORS.textMuted}
-            secureTextEntry
             value={newPassword}
             onChangeText={setNewPassword}
-            autoCapitalize="none"
+            secureTextEntry
           />
-
           <TextInput
             style={styles.input}
-            placeholder="Potwierdź nowe hasło"
+            placeholder="Powtorz nowe haslo"
             placeholderTextColor={COLORS.textMuted}
-            secureTextEntry
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            autoCapitalize="none"
+            secureTextEntry
           />
-
           <TouchableOpacity
             style={[styles.button, styles.secondaryButton]}
             onPress={handleChangePassword}
@@ -445,7 +292,7 @@ const SettingsScreen = ({ navigation }) => {
               <>
                 <Icon name="lock" size={20} color={COLORS.primary} />
                 <Text style={[styles.buttonText, { color: COLORS.primary }]}>
-                  Zmień hasło
+                  Zmien haslo
                 </Text>
               </>
             )}
@@ -453,7 +300,6 @@ const SettingsScreen = ({ navigation }) => {
         </View>
       </View>
 
-      {/* Logout */}
       <View style={styles.section}>
         <TouchableOpacity
           style={[styles.button, styles.logoutButton]}
@@ -461,7 +307,7 @@ const SettingsScreen = ({ navigation }) => {
         >
           <Icon name="logout" size={20} color={COLORS.offline} />
           <Text style={[styles.buttonText, { color: COLORS.offline }]}>
-            Wyloguj się
+            Wyloguj sie
           </Text>
         </TouchableOpacity>
       </View>
@@ -473,6 +319,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: COLORS.backgroundSecondary,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerText: {
+    flex: 1,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
   },
   section: {
     padding: 16,
