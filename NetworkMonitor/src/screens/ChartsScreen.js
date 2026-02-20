@@ -1,5 +1,5 @@
-// src/screens/ChartsScreen.js - Wykresy bez bibliotek
-import React, { useState, useEffect } from 'react';
+// src/screens/ChartsScreen.js
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -14,27 +14,31 @@ import Icon from 'react-native-vector-icons/MaterialIcons';
 import COLORS from '../constants/colors';
 
 const API_URL = 'http://10.0.2.2:8000';
-const screenWidth = Dimensions.get('window').width - 64;
 
-const SimpleBarChart = ({ data, color, label, max = 100 }) => {
+// =============== KOMPONENT WYKRESU ===============
+
+const SimpleBarChart = ({ data, color, label, unit = '', max = 100 }) => {
+  if (!data || data.length === 0) return null;
+
+  const safeMax = max > 0 ? max : 1;
+
   return (
     <View style={styles.chartContainer}>
       <Text style={styles.chartLabel}>{label}</Text>
       <View style={styles.barsContainer}>
         {data.map((value, index) => {
-          const height = Math.max((value / max) * 150, 2);
+          const height = Math.max((value / safeMax) * 150, 2);
           return (
             <View key={index} style={styles.barWrapper}>
-              <View 
+              <View
                 style={[
-                  styles.bar, 
-                  { 
-                    height, 
-                    backgroundColor: color,
-                  }
-                ]} 
+                  styles.bar,
+                  { height, backgroundColor: color },
+                ]}
               />
-              <Text style={styles.barValue}>{value.toFixed(0)}</Text>
+              <Text style={styles.barValue}>
+                {value > 0 ? value.toFixed(0) : ''}
+              </Text>
             </View>
           );
         })}
@@ -43,93 +47,187 @@ const SimpleBarChart = ({ data, color, label, max = 100 }) => {
   );
 };
 
+// =============== EKRAN GŁÓWNY ===============
+
 const ChartsScreen = ({ route, navigation }) => {
-  const { deviceId, deviceName } = route.params;
+  // Bezpieczne pobranie params — zabezpieczenie przed błędem undefined
+  const deviceId = route?.params?.deviceId;
+  const deviceName = route?.params?.deviceName || 'Urządzenie';
+
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [chartData, setChartData] = useState(null);
   const [hours, setHours] = useState(24);
+  const [noData, setNoData] = useState(false);
+
+  // Jeśli brak deviceId — pokaż komunikat zamiast crashować
+  useEffect(() => {
+    if (!deviceId) {
+      setError('Brak ID urządzenia. Wróć i wybierz urządzenie z listy.');
+      setLoading(false);
+    }
+  }, [deviceId]);
 
   useEffect(() => {
-    loadChartData();
-  }, [hours]);
+    if (deviceId) {
+      loadChartData();
+    }
+  }, [hours, deviceId]);
 
-  const loadChartData = async () => {
+  const loadChartData = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem('auth_token') || 
-                    await AsyncStorage.getItem('access_token');
+      setLoading(true);
+      setError(null);
+      setNoData(false);
+      setChartData(null); // Czyść stare dane przy zmianie zakresu
+
+      const token =
+        (await AsyncStorage.getItem('auth_token')) ||
+        (await AsyncStorage.getItem('access_token'));
 
       const response = await fetch(
         `${API_URL}/api/devices/${deviceId}/history?hours=${hours}`,
         {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      const data = await response.json();
-      
-      if (data.data && data.data.length > 0) {
-        processChartData(data.data);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
-    } catch (error) {
-      console.error('Error loading chart data:', error);
+
+      const data = await response.json();
+
+      // Endpoint zwraca { device_id, hours, data: [...] }
+      const rawData = data.data || data.metrics || [];
+
+      if (rawData.length === 0) {
+        setNoData(true);
+      } else {
+        processChartData(rawData);
+      }
+    } catch (err) {
+      console.error('Error loading chart data:', err);
+      setError(`Błąd ładowania danych: ${err.message}`);
     } finally {
       setLoading(false);
     }
-  };
+  }, [deviceId, hours]);
 
   const processChartData = (rawData) => {
-    // Sortuj i weź maksymalnie 10 punktów
-    const sorted = [...rawData].sort((a, b) => 
-      new Date(a.timestamp) - new Date(b.timestamp)
+    // Sortuj rosnąco po czasie
+    const sorted = [...rawData].sort(
+      (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
     );
 
-    const step = Math.ceil(sorted.length / 10);
-    const sampled = sorted.filter((_, i) => i % step === 0).slice(0, 10);
+    // Weź max 20 punktów równomiernie rozłożonych
+    const maxPoints = 20;
+    const step = Math.ceil(sorted.length / maxPoints);
+    const sampled = sorted.filter((_, i) => i % step === 0).slice(0, maxPoints);
 
-    const cpuData = sampled.map(item => item.cpu || 0);
-    const memoryData = sampled.map(item => item.memory || 0);
-    const signalData = sampled.map(item => Math.abs(item.signal || 0));
+    const cpuData = sampled.map((item) => item.cpu || 0);
+    const memoryData = sampled.map((item) => item.memory || 0);
+    const signalData = sampled.map((item) =>
+      item.signal ? Math.abs(item.signal) : 0
+    );
+    const connectionsData = sampled.map((item) => item.connections || 0);
 
-    // Oblicz średnie
-    const avgCPU = cpuData.reduce((a, b) => a + b, 0) / cpuData.length;
-    const avgMemory = memoryData.reduce((a, b) => a + b, 0) / memoryData.length;
-    const avgSignal = signalData.reduce((a, b) => a + b, 0) / signalData.length;
+    // Timestamps dla osi X
+    const labels = sampled.map((item) => {
+      const d = new Date(item.timestamp);
+      return `${d.getHours().toString().padStart(2, '0')}:${d
+        .getMinutes()
+        .toString()
+        .padStart(2, '0')}`;
+    });
 
-    // Znajdź maksimum
-    const maxCPU = Math.max(...cpuData);
-    const maxMemory = Math.max(...memoryData);
-    const maxSignal = Math.max(...signalData);
+    // Statystyki
+    const avg = (arr) =>
+      arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+    const max = (arr) => (arr.length > 0 ? Math.max(...arr) : 0);
 
     setChartData({
       cpu: cpuData,
       memory: memoryData,
       signal: signalData,
+      connections: connectionsData,
+      labels,
       stats: {
-        avgCPU: avgCPU.toFixed(1),
-        avgMemory: avgMemory.toFixed(1),
-        avgSignal: avgSignal.toFixed(1),
-        maxCPU: maxCPU.toFixed(1),
-        maxMemory: maxMemory.toFixed(1),
-        maxSignal: maxSignal.toFixed(1),
-      }
+        avgCPU: avg(cpuData).toFixed(1),
+        maxCPU: max(cpuData).toFixed(1),
+        avgMemory: avg(memoryData).toFixed(1),
+        maxMemory: max(memoryData).toFixed(1),
+        avgSignal: avg(signalData).toFixed(1),
+        maxConnections: max(connectionsData).toFixed(0),
+        dataPoints: sorted.length,
+      },
     });
   };
+
+  // =============== RENDEROWANIE ===============
 
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />
+        <Text style={styles.loadingText}>Ładowanie danych ({hours}h)...</Text>
       </View>
     );
   }
 
-  if (!chartData) {
+  if (error) {
     return (
       <View style={styles.emptyContainer}>
-        <Icon name="show-chart" size={64} color={COLORS.textMuted} />
-        <Text style={styles.emptyText}>Brak danych do wyświetlenia</Text>
+        <Icon name="error-outline" size={64} color={COLORS.offline} />
+        <Text style={styles.emptyText}>{error}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.retryText}>Wróć</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (noData) {
+    return (
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Icon name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+          <View style={styles.headerText}>
+            <Text style={styles.deviceName}>{deviceName}</Text>
+            <Text style={styles.subtitle}>Historia metryk</Text>
+          </View>
+        </View>
+
+        {/* Time Range */}
+        <View style={styles.timeRangeContainer}>
+          {[6, 24, 72, 168].map((h) => (
+            <TouchableOpacity
+              key={h}
+              style={[styles.timeButton, hours === h && styles.timeButtonActive]}
+              onPress={() => setHours(h)}
+            >
+              <Text style={[styles.timeText, hours === h && styles.timeTextActive]}>
+                {h === 72 ? '3d' : h === 168 ? '7d' : `${h}h`}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        <View style={styles.emptyContainer}>
+          <Icon name="show-chart" size={64} color={COLORS.textMuted} />
+          <Text style={styles.emptyText}>
+            Brak danych za ostatnie {hours}h
+          </Text>
+          <Text style={styles.emptySubtext}>
+            Dane pojawią się po zebraniu metryk przez worker
+          </Text>
+        </View>
       </View>
     );
   }
@@ -138,39 +236,33 @@ const ChartsScreen = ({ route, navigation }) => {
     <ScrollView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.deviceName}>{deviceName}</Text>
-        <Text style={styles.subtitle}>Historia metryk (ostatnie {hours}h)</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Icon name="arrow-back" size={24} color={COLORS.text} />
+        </TouchableOpacity>
+        <View style={styles.headerText}>
+          <Text style={styles.deviceName}>{deviceName}</Text>
+          <Text style={styles.subtitle}>
+            Ostatnie {hours === 72 ? '3 dni' : hours === 168 ? '7 dni' : `${hours}h`}
+            {chartData?.stats?.dataPoints
+              ? ` · ${chartData.stats.dataPoints} pomiarów`
+              : ''}
+          </Text>
+        </View>
       </View>
 
       {/* Time Range Selector */}
       <View style={styles.timeRangeContainer}>
-        <TouchableOpacity
-          style={[styles.timeButton, hours === 6 && styles.timeButtonActive]}
-          onPress={() => setHours(6)}
-        >
-          <Text style={[styles.timeText, hours === 6 && styles.timeTextActive]}>6h</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.timeButton, hours === 24 && styles.timeButtonActive]}
-          onPress={() => setHours(24)}
-        >
-          <Text style={[styles.timeText, hours === 24 && styles.timeTextActive]}>24h</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.timeButton, hours === 72 && styles.timeButtonActive]}
-          onPress={() => setHours(72)}
-        >
-          <Text style={[styles.timeText, hours === 72 && styles.timeTextActive]}>3d</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.timeButton, hours === 168 && styles.timeButtonActive]}
-          onPress={() => setHours(168)}
-        >
-          <Text style={[styles.timeText, hours === 168 && styles.timeTextActive]}>7d</Text>
-        </TouchableOpacity>
+        {[6, 24, 72, 168].map((h) => (
+          <TouchableOpacity
+            key={h}
+            style={[styles.timeButton, hours === h && styles.timeButtonActive]}
+            onPress={() => setHours(h)}
+          >
+            <Text style={[styles.timeText, hours === h && styles.timeTextActive]}>
+              {h === 72 ? '3d' : h === 168 ? '7d' : `${h}h`}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* CPU Chart */}
@@ -180,10 +272,11 @@ const ChartsScreen = ({ route, navigation }) => {
           <Text style={styles.chartTitle}>CPU Usage</Text>
         </View>
 
-        <SimpleBarChart 
-          data={chartData.cpu} 
+        <SimpleBarChart
+          data={chartData.cpu}
           color={COLORS.primary}
           label="CPU (%)"
+          max={100}
         />
 
         <View style={styles.statsRow}>
@@ -204,13 +297,14 @@ const ChartsScreen = ({ route, navigation }) => {
       <View style={styles.chartCard}>
         <View style={styles.chartHeader}>
           <Icon name="storage" size={24} color={COLORS.warning} />
-          <Text style={styles.chartTitle}>Memory Usage</Text>
+          <Text style={styles.chartTitle}>Pamięć RAM</Text>
         </View>
 
-        <SimpleBarChart 
-          data={chartData.memory} 
+        <SimpleBarChart
+          data={chartData.memory}
           color={COLORS.warning}
-          label="Memory (%)"
+          label="Pamięć (%)"
+          max={100}
         />
 
         <View style={styles.statsRow}>
@@ -220,45 +314,67 @@ const ChartsScreen = ({ route, navigation }) => {
           </View>
           <View style={styles.statItem}>
             <Text style={styles.statLabel}>Maksimum</Text>
-            <Text style={[styles.statValue, { color: COLORS.offline }]}>
+            <Text style={[styles.statValue, { color: COLORS.warning }]}>
               {chartData.stats.maxMemory}%
             </Text>
           </View>
         </View>
       </View>
 
-      {/* Signal Chart */}
-      {chartData.signal.some(s => s > 0) && (
+      {/* Signal Chart — tylko jeśli są dane */}
+      {chartData.signal.some((v) => v > 0) && (
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
             <Icon name="wifi" size={24} color={COLORS.online} />
-            <Text style={styles.chartTitle}>Signal Strength</Text>
+            <Text style={styles.chartTitle}>Sygnał</Text>
           </View>
 
-          <SimpleBarChart 
-            data={chartData.signal} 
+          <SimpleBarChart
+            data={chartData.signal}
             color={COLORS.online}
-            label="Signal (dBm)"
-            max={100}
+            label="Sygnał (|dBm|)"
+            max={Math.max(...chartData.signal, 1)}
           />
 
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Średnia</Text>
+              <Text style={styles.statLabel}>Średni</Text>
               <Text style={styles.statValue}>-{chartData.stats.avgSignal} dBm</Text>
-            </View>
-            <View style={styles.statItem}>
-              <Text style={styles.statLabel}>Najsłabszy</Text>
-              <Text style={[styles.statValue, { color: COLORS.offline }]}>
-                -{chartData.stats.maxSignal} dBm
-              </Text>
             </View>
           </View>
         </View>
       )}
+
+      {/* Connections Chart — tylko jeśli są dane */}
+      {chartData.connections.some((v) => v > 0) && (
+        <View style={styles.chartCard}>
+          <View style={styles.chartHeader}>
+            <Icon name="people" size={24} color="#9B59B6" />
+            <Text style={styles.chartTitle}>Połączenia</Text>
+          </View>
+
+          <SimpleBarChart
+            data={chartData.connections}
+            color="#9B59B6"
+            label="Liczba klientów"
+            max={Math.max(...chartData.connections, 1)}
+          />
+
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statLabel}>Maks. klientów</Text>
+              <Text style={styles.statValue}>{chartData.stats.maxConnections}</Text>
+            </View>
+          </View>
+        </View>
+      )}
+
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 };
+
+// =============== STYLE ===============
 
 const styles = StyleSheet.create({
   container: {
@@ -270,31 +386,69 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.background,
+    gap: 16,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    padding: 40,
+    gap: 12,
   },
   emptyText: {
     fontSize: 16,
     color: COLORS.textSecondary,
-    marginTop: 16,
+    textAlign: 'center',
+  },
+  emptySubtext: {
+    fontSize: 13,
+    color: COLORS.textMuted,
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: COLORS.text,
+    fontWeight: '700',
   },
   header: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 20,
     backgroundColor: COLORS.backgroundSecondary,
+    gap: 12,
+  },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  headerText: {
+    flex: 1,
   },
   deviceName: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
   },
   subtitle: {
-    fontSize: 14,
+    fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 4,
+    marginTop: 2,
   },
   timeRangeContainer: {
     flexDirection: 'row',
@@ -334,7 +488,7 @@ const styles = StyleSheet.create({
   chartHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 10,
   },
   chartTitle: {
@@ -343,18 +497,18 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   chartContainer: {
-    marginBottom: 16,
+    marginBottom: 8,
   },
   chartLabel: {
     fontSize: 12,
     color: COLORS.textMuted,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   barsContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     height: 150,
-    gap: 4,
+    gap: 3,
   },
   barWrapper: {
     flex: 1,
@@ -363,14 +517,14 @@ const styles = StyleSheet.create({
   },
   bar: {
     width: '100%',
-    borderTopLeftRadius: 4,
-    borderTopRightRadius: 4,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
     minHeight: 2,
   },
   barValue: {
-    fontSize: 9,
+    fontSize: 8,
     color: COLORS.textMuted,
-    marginTop: 4,
+    marginTop: 3,
   },
   statsRow: {
     flexDirection: 'row',
@@ -389,7 +543,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
   },

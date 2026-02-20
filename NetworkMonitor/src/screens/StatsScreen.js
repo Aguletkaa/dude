@@ -36,38 +36,41 @@ const StatsScreen = ({ navigation }) => {
       });
       const statsData = await statsResponse.json();
 
-      // Pobierz urządzenia do analizy
-      const devicesResponse = await fetch(`${API_URL}/api/devices`, {
+      // POPRAWKA: było /api/devices - endpoint nie istnieje, używamy /devices
+      const devicesResponse = await fetch(`${API_URL}/devices`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const devicesData = await devicesResponse.json();
 
+      // Zabezpieczenie gdyby devicesData nie była tablicą
+      const devices = Array.isArray(devicesData) ? devicesData : [];
+
       // TOP 5 urządzeń z największym CPU
-      const topCPU = [...devicesData]
+      const topCPU = [...devices]
         .filter(d => d.cpu > 0)
         .sort((a, b) => b.cpu - a.cpu)
         .slice(0, 5);
 
       // TOP 5 urządzeń z najsłabszym sygnałem
-      const topSignal = [...devicesData]
+      const topSignal = [...devices]
         .filter(d => d.signal && d.signal < 0)
         .sort((a, b) => a.signal - b.signal)
         .slice(0, 5);
 
       // TOP 5 urządzeń z NAJWIĘKSZĄ liczbą awarii
-      const topMostOutages = [...devicesData]
+      const topMostOutages = [...devices]
         .filter(d => d.outageCount !== undefined && d.outageCount > 0)
         .sort((a, b) => b.outageCount - a.outageCount)
         .slice(0, 5);
 
       // TOP 5 urządzeń z NAJMNIEJSZĄ liczbą awarii
-      const topLeastOutages = [...devicesData]
+      const topLeastOutages = [...devices]
         .filter(d => d.outageCount !== undefined)
         .sort((a, b) => a.outageCount - b.outageCount)
         .slice(0, 5);
 
       // Średni sygnał
-      const devicesWithSignal = devicesData.filter(d => d.signal && d.signal < 0);
+      const devicesWithSignal = devices.filter(d => d.signal && d.signal < 0);
       const avgSignal = devicesWithSignal.length > 0
         ? Math.abs(devicesWithSignal.reduce((sum, d) => sum + d.signal, 0) / devicesWithSignal.length).toFixed(0)
         : 0;
@@ -172,16 +175,12 @@ const StatsScreen = ({ navigation }) => {
               <View style={styles.deviceRank}>
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
-              
               <View style={styles.deviceInfo}>
                 <Text style={styles.deviceName}>{device.name}</Text>
                 <Text style={styles.deviceIP}>{device.ip}</Text>
               </View>
-
               <View style={styles.deviceMetric}>
-                <Text style={[styles.metricValue, { color: COLORS.warning }]}>
-                  {device.cpu}%
-                </Text>
+                <Text style={[styles.metricValue, { color: COLORS.warning }]}>{device.cpu}%</Text>
                 <Text style={styles.metricLabel}>CPU</Text>
               </View>
             </TouchableOpacity>
@@ -206,16 +205,12 @@ const StatsScreen = ({ navigation }) => {
               <View style={styles.deviceRank}>
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
-              
               <View style={styles.deviceInfo}>
                 <Text style={styles.deviceName}>{device.name}</Text>
                 <Text style={styles.deviceIP}>{device.ip}</Text>
               </View>
-
               <View style={styles.deviceMetric}>
-                <Text style={[styles.metricValue, { color: COLORS.offline }]}>
-                  {device.signal} dBm
-                </Text>
+                <Text style={[styles.metricValue, { color: COLORS.offline }]}>{device.signal} dBm</Text>
                 <Text style={styles.metricLabel}>Signal</Text>
               </View>
             </TouchableOpacity>
@@ -240,16 +235,12 @@ const StatsScreen = ({ navigation }) => {
               <View style={styles.deviceRank}>
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
-              
               <View style={styles.deviceInfo}>
                 <Text style={styles.deviceName}>{device.name}</Text>
                 <Text style={styles.deviceIP}>{device.ip}</Text>
               </View>
-
               <View style={styles.deviceMetric}>
-                <Text style={[styles.metricValue, { color: COLORS.offline }]}>
-                  {device.outageCount}
-                </Text>
+                <Text style={[styles.metricValue, { color: COLORS.offline }]}>{device.outageCount}</Text>
                 <Text style={styles.metricLabel}>Awarie</Text>
               </View>
             </TouchableOpacity>
@@ -274,16 +265,12 @@ const StatsScreen = ({ navigation }) => {
               <View style={styles.deviceRank}>
                 <Text style={styles.rankText}>{index + 1}</Text>
               </View>
-              
               <View style={styles.deviceInfo}>
                 <Text style={styles.deviceName}>{device.name}</Text>
                 <Text style={styles.deviceIP}>{device.ip}</Text>
               </View>
-
               <View style={styles.deviceMetric}>
-                <Text style={[styles.metricValue, { color: COLORS.online }]}>
-                  {device.outageCount}
-                </Text>
+                <Text style={[styles.metricValue, { color: COLORS.online }]}>{device.outageCount}</Text>
                 <Text style={styles.metricLabel}>Awarie</Text>
               </View>
             </TouchableOpacity>
@@ -358,34 +345,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
     textAlign: 'center',
-  },
-  alertsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  alertCard: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    borderRadius: 12,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  alertCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  alertCardValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  alertCardLabel: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
   },
   deviceRow: {
     flexDirection: 'row',

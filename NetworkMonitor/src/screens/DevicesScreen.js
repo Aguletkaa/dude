@@ -1,5 +1,5 @@
-// src/screens/DevicesScreen.js - POPRAWIONA WERSJA
-import React, { useState, useEffect, useCallback } from 'react';
+// src/screens/DevicesScreen.js
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -21,58 +21,71 @@ const DevicesScreen = ({ navigation }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const intervalRef = useRef(null);
 
-  const loadDevices = async () => {
+  const loadDevices = useCallback(async (silent = false) => {
     try {
+      if (!silent) setRefreshing(true);
       const data = await getDevices();
-      
-      // Dodaj logikę statusu "warning" dla urządzeń z problemami
+
       const processedData = data.map(device => {
         let status = device.status;
-        
-        // Sprawdź czy urządzenie ma problem (np. niski sygnał, wysokie CPU)
+
         if (status === 'online') {
-          const hasWarning = 
-            (device.signal && device.signal < -70) || // słaby sygnał
-            (device.cpu && device.cpu > 80) ||        // wysokie CPU
-            (device.memory && device.memory > 85);    // wysoka pamięć
-          
-          if (hasWarning) {
-            status = 'warning';
-          }
+          const hasWarning =
+            (device.signal && device.signal < -70) ||
+            (device.cpu && device.cpu > 80) ||
+            (device.memory && device.memory > 85);
+
+          if (hasWarning) status = 'warning';
         }
-        
+
         return { ...device, status };
       });
-      
+
       setDevices(processedData);
-      setFilteredDevices(processedData);
     } catch (error) {
       console.error('Error loading devices:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
-
-  useEffect(() => {
-    loadDevices();
   }, []);
 
+  // Pierwsze ładowanie + auto-refresh co 30s
+  useEffect(() => {
+    loadDevices();
+
+    intervalRef.current = setInterval(() => {
+      loadDevices(true); // silent = nie pokazuj spinnera
+    }, 30000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [loadDevices]);
+
+  // Odśwież gdy użytkownik wraca na ten ekran
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadDevices(true);
+    });
+    return unsubscribe;
+  }, [navigation, loadDevices]);
+
+  // Filtrowanie
   useEffect(() => {
     let filtered = devices;
 
-    // Filtrowanie po statusie
     if (filterStatus !== 'all') {
       filtered = filtered.filter(device => device.status === filterStatus);
     }
 
-    // Wyszukiwanie - POPRAWIONE (używa 'ip' zamiast 'ip_address')
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(device =>
         device.name.toLowerCase().includes(query) ||
-        device.ip.includes(query) || // POPRAWKA: było ip_address
+        device.ip.includes(query) ||
         (device.location && device.location.toLowerCase().includes(query)) ||
         (device.model && device.model.toLowerCase().includes(query))
       );
@@ -82,99 +95,101 @@ const DevicesScreen = ({ navigation }) => {
   }, [filterStatus, searchQuery, devices]);
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
     loadDevices();
-  }, []);
+  }, [loadDevices]);
 
   const getStatusColor = (status) => {
     switch (status) {
       case 'online': return COLORS.online;
       case 'offline': return COLORS.offline;
-      case 'warning': return COLORS.warning; // POPRAWKA: dodany warning
+      case 'warning': return COLORS.warning;
       default: return COLORS.textMuted;
     }
   };
 
   const getDeviceIcon = (type) => {
     switch (type) {
-      case 'antenna': return 'cell-tower';
+      case 'access_point': return 'wifi';
       case 'router': return 'router';
       case 'switch': return 'device-hub';
-      case 'access_point': return 'wifi';
+      case 'client': return 'computer';
       default: return 'devices';
     }
   };
 
-  // POPRAWKA: obsługa różnych formatów uptime
   const formatUptime = (uptime) => {
     if (!uptime) return 'N/A';
-    
-    // Jeśli uptime jest stringiem typu "2d 5h" - zwróć bezpośrednio
-    if (typeof uptime === 'string' && uptime.includes('d')) {
-      return uptime;
-    }
-    
-    // Jeśli uptime to liczba sekund
+    if (typeof uptime === 'string' && uptime.includes('d')) return uptime;
     if (typeof uptime === 'number') {
       const days = Math.floor(uptime / 86400);
       const hours = Math.floor((uptime % 86400) / 3600);
       const minutes = Math.floor((uptime % 3600) / 60);
-      
-      if (days > 0) {
-        return `${days}d ${hours}h`;
-      } else if (hours > 0) {
-        return `${hours}h ${minutes}m`;
-      } else {
-        return `${minutes}m`;
-      }
+      if (days > 0) return `${days}d ${hours}h`;
+      if (hours > 0) return `${hours}h ${minutes}m`;
+      return `${minutes}m`;
     }
-    
     return 'N/A';
   };
 
-  // POPRAWKA: formatowanie sygnału
   const formatSignal = (signal) => {
     if (!signal) return null;
     return `${signal} dBm`;
   };
 
+  // Liczniki statusów
+  const statusCounts = {
+    all: devices.length,
+    online: devices.filter(d => d.status === 'online').length,
+    warning: devices.filter(d => d.status === 'warning').length,
+    offline: devices.filter(d => d.status === 'offline').length,
+  };
+
   const renderDevice = ({ item }) => (
     <TouchableOpacity
-      style={styles.deviceCard}
+      style={[
+        styles.deviceCard,
+        item.status === 'offline' && styles.deviceCardOffline,
+        item.status === 'warning' && styles.deviceCardWarning,
+      ]}
       onPress={() => navigation.navigate('DeviceDetail', { deviceId: item.id })}
     >
       <View style={styles.deviceHeader}>
-        <View style={styles.deviceIconBox}>
-          <Icon name={getDeviceIcon(item.type)} size={28} color={COLORS.text} />
+        <View style={[
+          styles.deviceIconBox,
+          { borderColor: getStatusColor(item.status) + '40' }
+        ]}>
+          <Icon name={getDeviceIcon(item.type)} size={28} color={getStatusColor(item.status)} />
         </View>
-        
+
         <View style={styles.deviceInfo}>
           <Text style={styles.deviceName}>{item.name}</Text>
           <Text style={styles.deviceIP}>{item.ip}</Text>
         </View>
 
-        <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+        <View style={styles.statusBadge}>
+          <View style={[styles.statusDot, { backgroundColor: getStatusColor(item.status) }]} />
+          <Text style={[styles.statusText, { color: getStatusColor(item.status) }]}>
+            {item.status === 'online' ? 'Online' :
+             item.status === 'offline' ? 'Offline' :
+             item.status === 'warning' ? 'Warning' : 'Nieznany'}
+          </Text>
+        </View>
       </View>
 
       <View style={styles.deviceDetails}>
-        {/* POPRAWKA: lokalizacja z lepszym fallbackiem */}
         <View style={styles.detailItem}>
           <Text style={styles.detailLabel}>Lokalizacja</Text>
           <Text style={styles.detailValue}>
-            {item.location || item.device_name || 'Nie podano'}
+            {item.location || 'Nie podano'}
           </Text>
         </View>
 
         <View style={styles.detailsRow}>
-          {/* POPRAWKA: uptime z lepszym formatowaniem */}
           <View style={styles.detailItemSmall}>
             <Text style={styles.detailLabel}>Uptime</Text>
-            <Text style={styles.detailValue}>
-              {formatUptime(item.uptime)}
-            </Text>
+            <Text style={styles.detailValue}>{formatUptime(item.uptime)}</Text>
           </View>
 
-          {/* Klienci połączeni (dla AP) */}
           {item.connections !== null && item.connections !== undefined && (
             <View style={styles.detailItemSmall}>
               <Text style={styles.detailLabel}>Klienci</Text>
@@ -182,20 +197,18 @@ const DevicesScreen = ({ navigation }) => {
             </View>
           )}
 
-          {/* Sygnał (dla urządzeń wireless) */}
           {item.signal !== null && item.signal !== undefined && (
             <View style={styles.detailItemSmall}>
               <Text style={styles.detailLabel}>Sygnał</Text>
-              <Text style={[styles.detailValue, { 
-                color: item.signal > -60 ? COLORS.online : 
-                       item.signal > -70 ? COLORS.warning : COLORS.offline 
+              <Text style={[styles.detailValue, {
+                color: item.signal > -60 ? COLORS.online :
+                       item.signal > -70 ? COLORS.warning : COLORS.offline
               }]}>
                 {formatSignal(item.signal)}
               </Text>
             </View>
           )}
 
-          {/* CPU (jeśli dostępne) */}
           {item.cpu !== null && item.cpu !== undefined && item.cpu > 0 && (
             <View style={styles.detailItemSmall}>
               <Text style={styles.detailLabel}>CPU</Text>
@@ -230,12 +243,7 @@ const DevicesScreen = ({ navigation }) => {
 
       {/* Search */}
       <View style={styles.searchBox}>
-        <Icon 
-          name="search" 
-          size={20} 
-          color={COLORS.textMuted} 
-          style={styles.searchIcon}
-        />
+        <Icon name="search" size={20} color={COLORS.textMuted} style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
           placeholder="Szukaj po nazwie, IP, lokalizacji..."
@@ -250,47 +258,30 @@ const DevicesScreen = ({ navigation }) => {
         )}
       </View>
 
-      {/* Filters - POPRAWKA: dodany filtr "warning" */}
+      {/* Filters */}
       <View style={styles.filterRow}>
-        <TouchableOpacity
-          style={[styles.filterChip, filterStatus === 'all' && styles.filterChipActive]}
-          onPress={() => setFilterStatus('all')}
-        >
-          <Text style={[styles.filterText, filterStatus === 'all' && styles.filterTextActive]}>
-            Wszystkie
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterChip, filterStatus === 'online' && styles.filterChipActive]}
-          onPress={() => setFilterStatus('online')}
-        >
-          <View style={[styles.filterDot, { backgroundColor: COLORS.online }]} />
-          <Text style={[styles.filterText, filterStatus === 'online' && styles.filterTextActive]}>
-            Online
-          </Text>
-        </TouchableOpacity>
-
-        {/* NOWY FILTR: Warning */}
-        <TouchableOpacity
-          style={[styles.filterChip, filterStatus === 'warning' && styles.filterChipActive]}
-          onPress={() => setFilterStatus('warning')}
-        >
-          <View style={[styles.filterDot, { backgroundColor: COLORS.warning }]} />
-          <Text style={[styles.filterText, filterStatus === 'warning' && styles.filterTextActive]}>
-            Warning
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.filterChip, filterStatus === 'offline' && styles.filterChipActive]}
-          onPress={() => setFilterStatus('offline')}
-        >
-          <View style={[styles.filterDot, { backgroundColor: COLORS.offline }]} />
-          <Text style={[styles.filterText, filterStatus === 'offline' && styles.filterTextActive]}>
-            Offline
-          </Text>
-        </TouchableOpacity>
+        {[
+          { key: 'all', label: 'Wszystkie' },
+          { key: 'online', label: 'Online' },
+          { key: 'warning', label: 'Warning' },
+          { key: 'offline', label: 'Offline' },
+        ].map(({ key, label }) => (
+          <TouchableOpacity
+            key={key}
+            style={[styles.filterChip, filterStatus === key && styles.filterChipActive]}
+            onPress={() => setFilterStatus(key)}
+          >
+            {key !== 'all' && (
+              <View style={[styles.filterDot, {
+                backgroundColor: key === 'online' ? COLORS.online :
+                                 key === 'warning' ? COLORS.warning : COLORS.offline
+              }]} />
+            )}
+            <Text style={[styles.filterText, filterStatus === key && styles.filterTextActive]}>
+              {label} {statusCounts[key] > 0 ? `(${statusCounts[key]})` : ''}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
 
       {/* Device List */}
@@ -300,8 +291,8 @@ const DevicesScreen = ({ navigation }) => {
         keyExtractor={item => item.id.toString()}
         contentContainerStyle={styles.listContainer}
         refreshControl={
-          <RefreshControl 
-            refreshing={refreshing} 
+          <RefreshControl
+            refreshing={refreshing}
             onRefresh={onRefresh}
             tintColor={COLORS.primary}
             colors={[COLORS.primary]}
@@ -314,10 +305,7 @@ const DevicesScreen = ({ navigation }) => {
               {searchQuery ? 'Nie znaleziono urządzeń' : 'Brak urządzeń'}
             </Text>
             {searchQuery && (
-              <TouchableOpacity 
-                style={styles.clearButton}
-                onPress={() => setSearchQuery('')}
-              >
+              <TouchableOpacity style={styles.clearButton} onPress={() => setSearchQuery('')}>
                 <Text style={styles.clearButtonText}>Wyczyść wyszukiwanie</Text>
               </TouchableOpacity>
             )}
@@ -369,7 +357,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingLeft: 40,
-    paddingRight: 40,
+    paddingRight: 16,
     paddingVertical: 14,
     fontSize: 16,
     color: COLORS.text,
@@ -381,12 +369,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginBottom: 12,
     gap: 8,
+    flexWrap: 'wrap',
   },
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
     borderRadius: 20,
     backgroundColor: COLORS.card,
     borderWidth: 1,
@@ -403,7 +392,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   filterText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: COLORS.textSecondary,
   },
@@ -421,6 +410,14 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.border,
   },
+  deviceCardOffline: {
+    borderColor: COLORS.offline + '60',
+    backgroundColor: COLORS.offline + '08',
+  },
+  deviceCardWarning: {
+    borderColor: COLORS.warning + '60',
+    backgroundColor: COLORS.warning + '08',
+  },
   deviceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -430,31 +427,39 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: COLORS.iconBg,
+    backgroundColor: COLORS.backgroundSecondary,
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
   },
   deviceInfo: {
     flex: 1,
   },
   deviceName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   deviceIP: {
     fontSize: 13,
     color: COLORS.textSecondary,
     fontFamily: 'monospace',
   },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
   statusDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   deviceDetails: {
     borderTopWidth: 1,
@@ -470,14 +475,14 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   detailItemSmall: {
-    flex: 1,
-    minWidth: 80,
+    minWidth: 60,
   },
   detailLabel: {
     fontSize: 11,
     color: COLORS.textMuted,
-    marginBottom: 2,
     textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   detailValue: {
     fontSize: 14,
@@ -495,14 +500,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   clearButton: {
-    marginTop: 16,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: COLORS.primary,
-    borderRadius: 20,
+    marginTop: 12,
+    padding: 10,
   },
   clearButtonText: {
-    color: COLORS.background,
+    color: COLORS.primary,
     fontWeight: '600',
   },
 });

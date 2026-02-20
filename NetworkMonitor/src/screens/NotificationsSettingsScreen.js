@@ -21,6 +21,11 @@ const NotificationsSettingsScreen = ({ navigation }) => {
     sms_enabled: false,
     sms_number: '',
     email_address: '',
+    repeat_interval: 15,
+    quiet_hours_enabled: false,
+    quiet_hours_start: '22:00',
+    quiet_hours_end: '08:00',
+    notify_on_recovery: true,
   });
 
   useEffect(() => {
@@ -178,7 +183,88 @@ const NotificationsSettingsScreen = ({ navigation }) => {
           )}
         </View>
       </View>
+{/* Zaawansowane ustawienia */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Zaawansowane</Text>
+        
+        <View style={styles.card}>
+          {/* Repeat Interval */}
+          <View style={styles.settingRow}>
+            <View style={styles.settingInfo}>
+              <Icon name="repeat" size={24} color={COLORS.primary} />
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Powtarzaj powiadomienia</Text>
+                <Text style={styles.settingDescription}>
+                  Co {settings.repeat_interval} min (0 = tylko raz)
+                </Text>
+              </View>
+            </View>
+          </View>
+          
+          <TextInput
+            style={styles.input}
+            placeholder="Interwał (minuty)"
+            placeholderTextColor={COLORS.textMuted}
+            value={String(settings.repeat_interval)}
+            onChangeText={(text) => setSettings({...settings, repeat_interval: parseInt(text) || 0})}
+            keyboardType="number-pad"
+          />
 
+          {/* Quiet Hours */}
+          <View style={[styles.settingRow, {marginTop: 20}]}>
+            <View style={styles.settingInfo}>
+              <Icon name="nightlight" size={24} color={COLORS.primary} />
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Tryb cichy</Text>
+                <Text style={styles.settingDescription}>
+                  Wyłącz powiadomienia w nocy
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={settings.quiet_hours_enabled}
+              onValueChange={(value) => setSettings({...settings, quiet_hours_enabled: value})}
+              trackColor={{ false: COLORS.border, true: COLORS.primary }}
+            />
+          </View>
+
+          {settings.quiet_hours_enabled && (
+            <View style={{flexDirection: 'row', gap: 12, marginTop: 12}}>
+              <TextInput
+                style={[styles.input, {flex: 1, marginTop: 0}]}
+                placeholder="Start (HH:MM)"
+                value={settings.quiet_hours_start}
+                onChangeText={(text) => setSettings({...settings, quiet_hours_start: text})}
+              />
+              <TextInput
+                style={[styles.input, {flex: 1, marginTop: 0}]}
+                placeholder="Koniec (HH:MM)"
+                value={settings.quiet_hours_end}
+                onChangeText={(text) => setSettings({...settings, quiet_hours_end: text})}
+              />
+            </View>
+          )}
+
+          {/* Recovery notification */}
+          <View style={[styles.settingRow, {marginTop: 20}]}>
+            <View style={styles.settingInfo}>
+              <Icon name="check-circle" size={24} color={COLORS.success} />
+              <View style={styles.settingText}>
+                <Text style={styles.settingLabel}>Powiadom o naprawie</Text>
+                <Text style={styles.settingDescription}>
+                  Gdy urządzenie wróci do pracy
+                </Text>
+              </View>
+            </View>
+            <Switch
+              value={settings.notify_on_recovery}
+              onValueChange={(value) => setSettings({...settings, notify_on_recovery: value})}
+              trackColor={{ false: COLORS.border, true: COLORS.primary }}
+            />
+          </View>
+        </View>
+      </View>
+      
       {/* Save Button */}
       <View style={styles.section}>
         <TouchableOpacity style={styles.saveButton} onPress={handleSave}>

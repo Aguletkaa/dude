@@ -1,5 +1,6 @@
 # database.py - Database functions for Network Monitor
 import psycopg
+import json
 from psycopg.rows import dict_row
 from contextlib import contextmanager
 from datetime import datetime
@@ -167,6 +168,19 @@ def resolve_alert(alert_id: int) -> None:
             WHERE id = %s
         """, (alert_id,))
 
+
+def delete_alert(alert_id: int) -> bool:
+    """Trwale usuń alert z bazy danych"""
+    with get_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("""
+            DELETE FROM alerts
+            WHERE id = %s
+            RETURNING id
+        """, (alert_id,))
+        result = cursor.fetchone()
+        return result is not None
+    
 # =============== STATISTICS ===============
 def get_device_stats_24h(device_id: int) -> Dict:
     """Get device statistics for last 24 hours"""
@@ -205,7 +219,7 @@ def get_device_metrics_history(device_id: int, hours: int = 24) -> List[Dict]:
                 rx_rate
             FROM device_history
             WHERE device_id = %s 
-              AND timestamp >= NOW() - INTERVAL '%s hours'
+              AND timestamp >= (NOW() AT TIME ZONE 'UTC') - make_interval(hours => %s)
             ORDER BY timestamp ASC
         """, (device_id, hours))
         return cursor.fetchall()
@@ -223,6 +237,39 @@ def test_connection():
     except Exception as e:
         print(f"❌ Database ERROR: {e}")
         return False
+def save_user_settings(username: str, settings: dict):
+    """Zapisz ustawienia użytkownika do bazy"""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                INSERT INTO user_settings (username, settings, updated_at)
+                VALUES (%s, %s, NOW())
+                ON CONFLICT (username) 
+                DO UPDATE SET settings = %s, updated_at = NOW()
+            """, (username, json.dumps(settings), json.dumps(settings)))
+            print(f"✅ Settings saved to DB for {username}")
+    except Exception as e:
+        print(f"❌ Error saving settings: {e}")
+
+
+def load_user_settings(username: str) -> dict:
+    """Wczytaj ustawienia użytkownika z bazy"""
+    try:
+        with get_db() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT settings FROM user_settings 
+                WHERE username = %s
+            """, (username,))
+            result = cursor.fetchone()
+            
+            if result:
+                return result['settings']
+            return None
+    except Exception as e:
+        print(f"❌ Error loading settings: {e}")
+        return None
 
 if __name__ == "__main__":
     test_connection()

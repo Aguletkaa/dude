@@ -1,5 +1,5 @@
-// src/screens/DashboardScreen.js - Final Version z alertami
-import React, { useState, useEffect, useCallback } from 'react';
+// src/screens/DashboardScreen.js
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -14,55 +14,88 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getDashboardStats, logout } from '../api/client';
 import COLORS from '../constants/colors';
 
+const API_URL = 'http://10.0.2.2:8000';
+const AUTO_REFRESH_INTERVAL = 30000;
+
 const DashboardScreen = ({ navigation }) => {
   const [stats, setStats] = useState(null);
   const [alertCount, setAlertCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userName, setUserName] = useState('Użytkowniku');
+  const [lastUpdated, setLastUpdated] = useState(null);
+  const intervalRef = useRef(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async (silent = false) => {
     try {
-      const token = await AsyncStorage.getItem('auth_token') || 
-                    await AsyncStorage.getItem('access_token');
-      
-      // Pobierz dane użytkownika
+      const token =
+        (await AsyncStorage.getItem('auth_token')) ||
+        (await AsyncStorage.getItem('access_token'));
+
       const userJson = await AsyncStorage.getItem('user');
       if (userJson) {
         const user = JSON.parse(userJson);
         setUserName(user.username || user.full_name || 'Użytkowniku');
       }
-      
+
       const [statsData, alertsData] = await Promise.all([
         getDashboardStats(),
-        fetch('http://10.0.2.2:8000/api/alerts/summary', {
-          headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-        }).then(r => r.json()).catch(() => ({ critical_count: 0 }))
+        fetch(`${API_URL}/api/alerts/summary`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        })
+          .then((r) => r.json())
+          .catch(() => ({ critical_count: 0, info_count: 0 })),
       ]);
-      
+
       setStats(statsData);
-      // Wszystkie aktywne: critical + info
       const totalActive = (alertsData.critical_count || 0) + (alertsData.info_count || 0);
       setAlertCount(totalActive);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error('Error loading dashboard:', error);
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (!silent) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     loadData();
-  }, []);
+
+    intervalRef.current = setInterval(() => {
+      loadData(true);
+    }, AUTO_REFRESH_INTERVAL);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [loadData]);
+
+  // Odśwież dane gdy wracamy na ekran (np. po wejściu w Alerty i powrocie)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadData(true);
+    });
+    return unsubscribe;
+  }, [navigation, loadData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     loadData();
-  }, []);
+  }, [loadData]);
 
   const handleLogout = async () => {
     await logout();
+  };
+
+  const formatLastUpdated = () => {
+    if (!lastUpdated) return '';
+    const hours = lastUpdated.getHours().toString().padStart(2, '0');
+    const minutes = lastUpdated.getMinutes().toString().padStart(2, '0');
+    const seconds = lastUpdated.getSeconds().toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
   };
 
   if (loading) {
@@ -77,10 +110,11 @@ const DashboardScreen = ({ navigation }) => {
     <ScrollView
       style={styles.container}
       refreshControl={
-        <RefreshControl 
-          refreshing={refreshing} 
+        <RefreshControl
+          refreshing={refreshing}
           onRefresh={onRefresh}
           tintColor={COLORS.primary}
+          colors={[COLORS.primary]}
         />
       }
     >
@@ -88,16 +122,23 @@ const DashboardScreen = ({ navigation }) => {
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Witaj, {userName}</Text>
-          <Text style={styles.subtitle}>Panel zarządzania siecią</Text>
+          <Text style={styles.subtitle}>
+            Panel zarządzania siecią
+          </Text>
+          {lastUpdated && (
+            <Text style={styles.lastUpdated}>
+              Zaktualizowano: {formatLastUpdated()}
+            </Text>
+          )}
         </View>
         <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
           <Icon name="logout" size={20} color={COLORS.text} />
         </TouchableOpacity>
       </View>
 
-      {/* Grid Menu - ULEPSZONE */}
+      {/* Grid Menu */}
       <View style={styles.menuGrid}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.menuTile, styles.tile1]}
           onPress={() => navigation.navigate('Map')}
           activeOpacity={0.7}
@@ -106,10 +147,10 @@ const DashboardScreen = ({ navigation }) => {
             <Icon name="map" size={48} color={COLORS.text} />
           </View>
           <Text style={styles.tileText}>Mapa</Text>
-          <Text style={styles.tileSubtext}>Topologia sieci</Text>
+          <Text style={styles.tileSubtext}>Topologia</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.menuTile, styles.tile2]}
           onPress={() => navigation.navigate('Devices')}
           activeOpacity={0.7}
@@ -118,20 +159,20 @@ const DashboardScreen = ({ navigation }) => {
             <Icon name="router" size={48} color={COLORS.text} />
           </View>
           <Text style={styles.tileText}>Urządzenia</Text>
-          <Text style={styles.tileSubtext}>{stats?.total_devices || 0} urządzeń</Text>
+          <Text style={styles.tileSubtext}>Lista sieci</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.menuTile, styles.tile3]}
           onPress={() => navigation.navigate('Alerts')}
           activeOpacity={0.7}
         >
           <View style={styles.iconGlow}>
-            <Icon name="warning" size={48} color={COLORS.text} />
+            <Icon name="notifications-active" size={48} color={COLORS.text} />
           </View>
           <Text style={styles.tileText}>Alerty</Text>
           <Text style={styles.tileSubtext}>
-            {alertCount} aktywnych
+            {alertCount > 0 ? `${alertCount} aktywnych` : 'Brak alertów'}
           </Text>
           {alertCount > 0 && (
             <View style={styles.badge}>
@@ -140,7 +181,7 @@ const DashboardScreen = ({ navigation }) => {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.menuTile, styles.tile4]}
           onPress={() => navigation.navigate('DevicePicker')}
           activeOpacity={0.7}
@@ -149,10 +190,10 @@ const DashboardScreen = ({ navigation }) => {
             <Icon name="show-chart" size={48} color={COLORS.text} />
           </View>
           <Text style={styles.tileText}>Wykresy</Text>
-          <Text style={styles.tileSubtext}>Analiza danych</Text>
+          <Text style={styles.tileSubtext}>Historia</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.menuTile, styles.tile5]}
           onPress={() => navigation.navigate('Stats')}
           activeOpacity={0.7}
@@ -164,9 +205,9 @@ const DashboardScreen = ({ navigation }) => {
           <Text style={styles.tileSubtext}>Raporty</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.menuTile, styles.tile6]}
-          onPress={() => navigation.navigate('NotificationsSettings')}  // ZMIEŃ TO
+          onPress={() => navigation.navigate('NotificationsSettings')}
           activeOpacity={0.7}
         >
           <View style={styles.iconGlow}>
@@ -176,7 +217,7 @@ const DashboardScreen = ({ navigation }) => {
           <Text style={styles.tileSubtext}>Konfiguracja</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[styles.menuTile, styles.tile7]}
           onPress={() => navigation.navigate('Settings')}
           activeOpacity={0.7}
@@ -192,7 +233,7 @@ const DashboardScreen = ({ navigation }) => {
       {/* Stats Overview */}
       <View style={styles.statsSection}>
         <Text style={styles.sectionTitle}>Przegląd sieci</Text>
-        
+
         <View style={styles.statsGrid}>
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Urządzeń</Text>
@@ -215,7 +256,7 @@ const DashboardScreen = ({ navigation }) => {
 
           <View style={styles.statCard}>
             <Text style={styles.statLabel}>Alerty</Text>
-            <Text style={[styles.statValue, { color: COLORS.offline }]}>
+            <Text style={[styles.statValue, { color: alertCount > 0 ? COLORS.offline : COLORS.online }]}>
               {alertCount}
             </Text>
           </View>
@@ -253,6 +294,11 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
   },
+  lastUpdated: {
+    fontSize: 11,
+    color: COLORS.textMuted,
+    marginTop: 4,
+  },
   logoutButton: {
     width: 44,
     height: 44,
@@ -285,27 +331,13 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 12,
   },
-  tile1: { 
-    backgroundColor: '#8B7355',
-  },
-  tile2: { 
-    backgroundColor: '#7A6B54',
-  },
-  tile3: { 
-    backgroundColor: '#A0836C',
-  },
-  tile4: { 
-    backgroundColor: '#6B5B4A',
-  },
-  tile5: { 
-    backgroundColor: '#9B8570',
-  },
-  tile6: { 
-    backgroundColor: '#7C6D5C',
-  },
-  tile7: { 
-    backgroundColor: '#8A7B6A',
-  },
+  tile1: { backgroundColor: '#8B7355' },
+  tile2: { backgroundColor: '#7A6B54' },
+  tile3: { backgroundColor: '#A0836C' },
+  tile4: { backgroundColor: '#6B5B4A' },
+  tile5: { backgroundColor: '#9B8570' },
+  tile6: { backgroundColor: '#7C6D5C' },
+  tile7: { backgroundColor: '#8A7B6A' },
   iconGlow: {
     marginBottom: 8,
     shadowColor: COLORS.primary,

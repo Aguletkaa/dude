@@ -42,7 +42,7 @@ const DevicePickerScreen = ({ navigation }) => {
       const token = await AsyncStorage.getItem('auth_token') || 
                     await AsyncStorage.getItem('access_token');
 
-      const response = await fetch(`${API_URL}/api/devices`, {
+      const response = await fetch(`${API_URL}/devices`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
