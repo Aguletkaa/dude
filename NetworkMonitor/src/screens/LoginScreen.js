@@ -1,4 +1,4 @@
-// src/screens/LoginScreen.js - Dark Theme with Icon
+// src/screens/LoginScreen.js
 import React, { useState } from 'react';
 import {
   View,
@@ -28,17 +28,15 @@ const LoginScreen = ({ navigation }) => {
     try {
       setLoading(true);
       const response = await login(username, password);
-      console.log('✅ Zalogowano:', response.user.username);
-      console.log('✅ Token zapisany');
+      console.log('Zalogowano:', response.user.username);
+      console.log('Token zapisany');
       
-      // Zarejestruj FCM token
+      //FCM token
       const NotificationService = require('../services/NotificationService').default;
       setTimeout(async () => {
         await NotificationService.registerForPushNotifications();
       }, 1500);
       
-      // Token jest już zapisany w api/client.js
-      // AppNavigator automatycznie przełączy się na MainTabs gdy wykryje token
       
     } catch (error) {
       console.error('❌ Login error:', error);
@@ -62,7 +60,7 @@ const LoginScreen = ({ navigation }) => {
         {/* Logo Area */}
         <View style={styles.logoContainer}>
           <View style={styles.logoBox}>
-            {/* Network Hub Icon - nowoczesny, profesjonalny */}
+            {/* Network Hub Icon */}
             <View style={styles.hubIcon}>
               {/* Centralny node */}
               <View style={styles.centralNode} />
@@ -180,7 +178,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.primary,
   },
-  // Network Hub Icon - profesjonalny, nowoczesny
+  // Network Hub Icon
   hubIcon: {
     width: 80,
     height: 80,

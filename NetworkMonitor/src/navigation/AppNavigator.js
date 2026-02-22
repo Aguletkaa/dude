@@ -122,7 +122,6 @@ const MainTabs = () => {
           },
         }}
         listeners={{
-          // Odśwież licznik gdy wchodzimy w zakładkę Alerty
           tabPress: () => {
             setTimeout(() => fetchAlertCount(), 500);
           },

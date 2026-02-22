@@ -21,7 +21,7 @@ const NotificationBanner = ({ notification, onDismiss, index }) => {
         tension: 60,
         friction: 10,
         useNativeDriver: true,
-        delay: index * 80, // Stagger animation
+        delay: index * 80, 
       }),
       Animated.timing(opacityAnim, {
         toValue: 1,
@@ -47,7 +47,6 @@ const NotificationBanner = ({ notification, onDismiss, index }) => {
     ]).start(() => onDismiss());
   };
 
-  // Kolor na podstawie severity/typu
   const getSeverityColor = () => {
     const title = (notification.title || '').toLowerCase();
     const body = (notification.body || '').toLowerCase();
@@ -113,7 +112,6 @@ const NotificationBanner = ({ notification, onDismiss, index }) => {
   );
 };
 
-// Kontener na wszystkie bannery
 const InAppNotificationBanner = () => {
   const { notifications, dismissNotification, dismissAll } = useNotifications();
 

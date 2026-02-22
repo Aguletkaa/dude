@@ -227,8 +227,8 @@ const DevicesScreen = ({ navigation }) => {
           <Icon name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>Urzadzenia</Text>
-          <Text style={styles.headerSubtitle}>{filteredDevices.length} urzadzen</Text>
+          <Text style={styles.headerTitle}>Urządzenia</Text>
+          <Text style={styles.headerSubtitle}>{filteredDevices.length} urządzeń</Text>
         </View>
       </View>
 

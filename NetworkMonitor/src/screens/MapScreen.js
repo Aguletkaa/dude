@@ -1,4 +1,4 @@
-// src/screens/MapScreen.js - Mapa topologii z The Dude + Podmapy + Statusy z backendu
+// src/screens/MapScreen.js
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ActivityIndicator, ScrollView,
@@ -29,7 +29,6 @@ const MapScreen = ({ navigation }) => {
       const token = await AsyncStorage.getItem('auth_token') ||
                     await AsyncStorage.getItem('access_token');
 
-      // Endpoint mapy zwraca WSZYSTKO - pozycje, połączenia I statusy
       const res = await fetch(`${API_URL}/api/map/layout`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -58,7 +57,6 @@ const MapScreen = ({ navigation }) => {
       ...item,
       x: item.x - minX + padding,
       y: item.y - minY + padding,
-      // Status przychodzi z backendu!
     }));
 
     const maxX = Math.max(...items.map(i => i.x)) + padding * 2;
@@ -139,7 +137,6 @@ const MapScreen = ({ navigation }) => {
   const resetZoom = () => setScale(currentMapId === MAIN_MAP_ID ? 0.4 : 0.5);
   const onRefresh = () => { setRefreshing(true); loadData(); };
 
-  // ========== RENDER ==========
 
   if (loading) {
     return (

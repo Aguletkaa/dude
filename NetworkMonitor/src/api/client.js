@@ -2,12 +2,10 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// ZMIEŃ TO NA SWOJE IP jeśli testujesz na fizycznym telefonie!
 const BASE_URL = 'http://10.0.2.2:8000'; // Android emulator
 // const BASE_URL = 'http://localhost:8000'; // iOS simulator
-// const BASE_URL = 'http://192.168.1.100:8000'; // Fizyczny telefon (ZMIEŃ IP!)
+// const BASE_URL = 'http://192.168.1.100:8000'; // Fizyczny telefon
 
-// Stwórz axios instance
 const apiClient = axios.create({
   baseURL: BASE_URL,
   timeout: 10000,
@@ -16,7 +14,6 @@ const apiClient = axios.create({
   },
 });
 
-// Interceptor - dodaje token do każdego requesta
 apiClient.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('auth_token');
@@ -30,20 +27,17 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Interceptor - obsługa błędów
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Token wygasł - wyloguj użytkownika
       await AsyncStorage.removeItem('auth_token');
-      // Tutaj możesz dodać nawigację do ekranu logowania
     }
     return Promise.reject(error);
   }
 );
 
-// ============= API FUNCTIONS =============
+//API FUNCTIONS
 
 // AUTH
 export const login = async (username, password) => {
@@ -53,7 +47,6 @@ export const login = async (username, password) => {
       password,
     });
     
-    // Zapisz token
     await AsyncStorage.setItem('auth_token', response.data.access_token);
     await AsyncStorage.setItem('user', JSON.stringify(response.data.user));
     

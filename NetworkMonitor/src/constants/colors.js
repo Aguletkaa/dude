@@ -1,41 +1,40 @@
 // src/constants/colors.js
-// Dark Theme - Consistent with Login Screen
 
 export const COLORS = {
-  // Backgrounds - Ciemne (jak login)
-  background: '#2D2520',           // Bardzo ciemny brąz (główne tło)
-  backgroundSecondary: '#3D3530',  // Trochę jaśniejsze (karty)
-  card: '#3D3530',                 // Karty
-  cardDark: '#2D2520',             // Ciemniejsze elementy
-  cardLight: '#4D4540',            // Jaśniejsze karty
+  // Backgrounds
+  background: '#2D2520',           
+  backgroundSecondary: '#3D3530',  
+  card: '#3D3530',                 
+  cardDark: '#2D2520',             
+  cardLight: '#4D4540',            
   
-  // Akcenty - Beżowe (NIE złote!)
-  primary: '#A89575',              // Beżowy akcent
-  primaryDark: '#8B7355',          // Ciemniejszy beż
-  primaryLight: '#C9B899',         // Jaśniejszy beż
-  accent: '#C9A87C',               // Beżowy
+  // Akcenty
+  primary: '#A89575',              
+  primaryDark: '#8B7355',         
+  primaryLight: '#C9B899',         
+  accent: '#C9A87C',               
   
   // Status colors
-  online: '#7FB069',               // Przytłumiony zielony
-  offline: '#D45B5B',              // Przytłumiony czerwony
-  warning: '#E8A13A',              // Przytłumiony pomarańczowy
+  online: '#7FB069',              
+  offline: '#D45B5B',              
+  warning: '#E8A13A',            
   
-  // Text - Jasne na ciemnym tle
-  text: '#E8DCC8',                 // Jasny beż (główny tekst)
-  textSecondary: '#B8ACA0',        // Przygaszony jasny
-  textMuted: '#8B7D6B',            // Bardziej przygaszony
-  textDark: '#5D4E3E',             // Ciemny tekst (dla jasnych tła)
+  // Text 
+  text: '#E8DCC8',                 
+  textSecondary: '#B8ACA0',        
+  textMuted: '#8B7D6B',           
+  textDark: '#5D4E3E',           
   
   // Borders
-  border: '#4D4540',               // Obramowania
-  borderLight: '#5D5550',          // Jasne obramowania
-  borderDark: '#3D3530',           // Ciemne obramowania
+  border: '#4D4540',              
+  borderLight: '#5D5550',         
+  borderDark: '#3D3530',           
   
   // Icon backgrounds
-  iconBg: '#4D4540',               // Tło dla ikon
-  iconBgHover: '#5D5550',          // Hover state
+  iconBg: '#4D4540',              
+  iconBgHover: '#5D5550',          
   
-  // Tile colors (dla kafelków - różne odcienie)
+  // kafelki
   tile1: '#8B7355',
   tile2: '#7A6B54',
   tile3: '#A0836C',
@@ -45,7 +44,6 @@ export const COLORS = {
   tile7: '#8A7B6A',
 };
 
-// Helper functions
 export const getStatusColor = (status) => {
   switch (status?.toLowerCase()) {
     case 'online':

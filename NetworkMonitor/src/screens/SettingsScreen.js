@@ -51,17 +51,17 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleChangePassword = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
-      Alert.alert('Blad', 'Wypelnij wszystkie pola');
+      Alert.alert('Blad', 'Wypełnij wszystkie pola');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert('Blad', 'Nowe hasla nie pasuja do siebie');
+      Alert.alert('Błąd', 'Nowe hasła nie pasują do siebie');
       return;
     }
 
     if (newPassword.length < 6) {
-      Alert.alert('Blad', 'Nowe haslo musi miec min. 6 znakow');
+      Alert.alert('Błąd', 'Nowe hasło musi mieć min. 6 znaków');
       return;
     }
 
@@ -83,16 +83,16 @@ const SettingsScreen = ({ navigation }) => {
       });
 
       if (response.ok) {
-        Alert.alert('Sukces', 'Haslo zostalo zmienione');
+        Alert.alert('Sukces', 'Hasło zostało zmienione');
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
       } else {
         const data = await response.json();
-        Alert.alert('Blad', data.detail || 'Nie udalo sie zmienic hasla');
+        Alert.alert('Błąd', data.detail || 'Nie udało sie zmienic hasła');
       }
     } catch (error) {
-      Alert.alert('Blad', 'Blad polaczenia z serwerem');
+      Alert.alert('Błąd', 'Błąd połączenia z serwerem');
     } finally {
       setLoading(false);
     }
@@ -100,7 +100,7 @@ const SettingsScreen = ({ navigation }) => {
 
   const handleChangeProfile = async () => {
     if (!passwordForProfile) {
-      Alert.alert('Blad', 'Podaj haslo aby potwierdzic zmiany');
+      Alert.alert('Błąd', 'Podaj hasło aby potwierdzić zmiany');
       return;
     }
 
@@ -127,13 +127,13 @@ const SettingsScreen = ({ navigation }) => {
         await AsyncStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
         setPasswordForProfile('');
-        Alert.alert('Sukces', 'Profil zostal zaktualizowany');
+        Alert.alert('Sukces', 'Profil został zaktualizowany');
       } else {
         const data = await response.json();
-        Alert.alert('Blad', data.detail || 'Nie udalo sie zaktualizowac profilu');
+        Alert.alert('Blad', data.detail || 'Nie udało się zaktualizować profilu');
       }
     } catch (error) {
-      Alert.alert('Blad', 'Blad polaczenia z serwerem');
+      Alert.alert('Błąd', 'Błąd połączenia z serwerem');
     } finally {
       setLoading(false);
     }
@@ -142,7 +142,7 @@ const SettingsScreen = ({ navigation }) => {
   const handleLogout = () => {
     Alert.alert(
       'Wylogowanie',
-      'Czy na pewno chcesz sie wylogowac?',
+      'Czy na pewno chcesz się wylogować?',
       [
         { text: 'Anuluj', style: 'cancel' },
         {
@@ -168,7 +168,7 @@ const SettingsScreen = ({ navigation }) => {
         </TouchableOpacity>
         <View style={styles.headerText}>
           <Text style={styles.headerTitle}>Ustawienia</Text>
-          <Text style={styles.headerSubtitle}>Konto uzytkownika</Text>
+          <Text style={styles.headerSubtitle}>Konto użytkownika</Text>
         </View>
       </View>
 
@@ -179,7 +179,7 @@ const SettingsScreen = ({ navigation }) => {
           <View style={styles.infoRow}>
             <Icon name="person" size={24} color={COLORS.primary} />
             <View style={styles.infoText}>
-              <Text style={styles.infoLabel}>Nazwa uzytkownika</Text>
+              <Text style={styles.infoLabel}>Nazwa użytkownika</Text>
               <Text style={styles.infoValue}>{user?.username || 'Loading...'}</Text>
             </View>
           </View>
@@ -203,19 +203,19 @@ const SettingsScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Zmien dane profilu</Text>
+        <Text style={styles.sectionTitle}>Zmień dane profilu</Text>
 
         <View style={styles.card}>
           <TextInput
             style={styles.input}
-            placeholder="Nazwa uzytkownika (min. 3 znaki)"
+            placeholder="Nazwa użytkownika (min. 3 znaki)"
             placeholderTextColor={COLORS.textMuted}
             value={newUsername}
             onChangeText={setNewUsername}
           />
           <TextInput
             style={styles.input}
-            placeholder="Imie i nazwisko"
+            placeholder="Imię i nazwisko"
             placeholderTextColor={COLORS.textMuted}
             value={fullName}
             onChangeText={setFullName}
@@ -230,7 +230,7 @@ const SettingsScreen = ({ navigation }) => {
           />
           <TextInput
             style={styles.input}
-            placeholder="Aktualne haslo (wymagane)"
+            placeholder="Aktualne hasło (wymagane)"
             placeholderTextColor={COLORS.textMuted}
             value={passwordForProfile}
             onChangeText={setPasswordForProfile}
@@ -254,12 +254,12 @@ const SettingsScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Zmien haslo</Text>
+        <Text style={styles.sectionTitle}>Zmień hasło</Text>
 
         <View style={styles.card}>
           <TextInput
             style={styles.input}
-            placeholder="Aktualne haslo"
+            placeholder="Aktualne hasło"
             placeholderTextColor={COLORS.textMuted}
             value={oldPassword}
             onChangeText={setOldPassword}
@@ -267,7 +267,7 @@ const SettingsScreen = ({ navigation }) => {
           />
           <TextInput
             style={styles.input}
-            placeholder="Nowe haslo (min. 6 znakow)"
+            placeholder="Nowe hasło (min. 6 znakow)"
             placeholderTextColor={COLORS.textMuted}
             value={newPassword}
             onChangeText={setNewPassword}
@@ -275,7 +275,7 @@ const SettingsScreen = ({ navigation }) => {
           />
           <TextInput
             style={styles.input}
-            placeholder="Powtorz nowe haslo"
+            placeholder="Powtórz nowe hasło"
             placeholderTextColor={COLORS.textMuted}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
@@ -292,7 +292,7 @@ const SettingsScreen = ({ navigation }) => {
               <>
                 <Icon name="lock" size={20} color={COLORS.primary} />
                 <Text style={[styles.buttonText, { color: COLORS.primary }]}>
-                  Zmien haslo
+                  Zmień hasło
                 </Text>
               </>
             )}

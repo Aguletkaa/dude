@@ -15,8 +15,7 @@ import COLORS from '../constants/colors';
 
 const API_URL = 'http://10.0.2.2:8000';
 
-// =============== KOMPONENT WYKRESU ===============
-
+//KOMPONENT WYKRESU
 const SimpleBarChart = ({ data, color, label, unit = '', max = 100 }) => {
   if (!data || data.length === 0) return null;
 
@@ -47,10 +46,9 @@ const SimpleBarChart = ({ data, color, label, unit = '', max = 100 }) => {
   );
 };
 
-// =============== EKRAN GŁÓWNY ===============
+//EKRAN GŁÓWNY
 
 const ChartsScreen = ({ route, navigation }) => {
-  // Bezpieczne pobranie params — zabezpieczenie przed błędem undefined
   const deviceId = route?.params?.deviceId;
   const deviceName = route?.params?.deviceName || 'Urządzenie';
 
@@ -60,7 +58,6 @@ const ChartsScreen = ({ route, navigation }) => {
   const [hours, setHours] = useState(24);
   const [noData, setNoData] = useState(false);
 
-  // Jeśli brak deviceId — pokaż komunikat zamiast crashować
   useEffect(() => {
     if (!deviceId) {
       setError('Brak ID urządzenia. Wróć i wybierz urządzenie z listy.');
@@ -79,7 +76,7 @@ const ChartsScreen = ({ route, navigation }) => {
       setLoading(true);
       setError(null);
       setNoData(false);
-      setChartData(null); // Czyść stare dane przy zmianie zakresu
+      setChartData(null);
 
       const token =
         (await AsyncStorage.getItem('auth_token')) ||
@@ -98,7 +95,6 @@ const ChartsScreen = ({ route, navigation }) => {
 
       const data = await response.json();
 
-      // Endpoint zwraca { device_id, hours, data: [...] }
       const rawData = data.data || data.metrics || [];
 
       if (rawData.length === 0) {
@@ -115,12 +111,10 @@ const ChartsScreen = ({ route, navigation }) => {
   }, [deviceId, hours]);
 
   const processChartData = (rawData) => {
-    // Sortuj rosnąco po czasie
     const sorted = [...rawData].sort(
       (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
     );
 
-    // Weź max 20 punktów równomiernie rozłożonych
     const maxPoints = 20;
     const step = Math.ceil(sorted.length / maxPoints);
     const sampled = sorted.filter((_, i) => i % step === 0).slice(0, maxPoints);
@@ -132,7 +126,6 @@ const ChartsScreen = ({ route, navigation }) => {
     );
     const connectionsData = sampled.map((item) => item.connections || 0);
 
-    // Timestamps dla osi X
     const labels = sampled.map((item) => {
       const d = new Date(item.timestamp);
       return `${d.getHours().toString().padStart(2, '0')}:${d
@@ -164,8 +157,7 @@ const ChartsScreen = ({ route, navigation }) => {
     });
   };
 
-  // =============== RENDEROWANIE ===============
-
+  //RENDEROWANIE
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -321,7 +313,7 @@ const ChartsScreen = ({ route, navigation }) => {
         </View>
       </View>
 
-      {/* Signal Chart — tylko jeśli są dane */}
+      {/* Signal Chart */}
       {chartData.signal.some((v) => v > 0) && (
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
@@ -345,7 +337,7 @@ const ChartsScreen = ({ route, navigation }) => {
         </View>
       )}
 
-      {/* Connections Chart — tylko jeśli są dane */}
+      {/* Connections Chart */}
       {chartData.connections.some((v) => v > 0) && (
         <View style={styles.chartCard}>
           <View style={styles.chartHeader}>
@@ -373,8 +365,6 @@ const ChartsScreen = ({ route, navigation }) => {
     </ScrollView>
   );
 };
-
-// =============== STYLE ===============
 
 const styles = StyleSheet.create({
   container: {

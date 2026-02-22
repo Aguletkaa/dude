@@ -73,7 +73,6 @@ const DashboardScreen = ({ navigation }) => {
     };
   }, [loadData]);
 
-  // Odśwież dane gdy wracamy na ekran (np. po wejściu w Alerty i powrocie)
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       loadData(true);

@@ -19,8 +19,6 @@ import COLORS from '../constants/colors';
 const API_URL = 'http://10.0.2.2:8000';
 const SWIPE_THRESHOLD = -80;
 
-// =============== SWIPEABLE ALERT CARD ===============
-
 const SwipeableAlert = ({ item, onDelete, onSelect, isSelected, selectionMode }) => {
   const translateX = useRef(new Animated.Value(0)).current;
   const deleteOpacity = useRef(new Animated.Value(0)).current;
@@ -78,7 +76,6 @@ const SwipeableAlert = ({ item, onDelete, onSelect, isSelected, selectionMode })
 
   return (
     <View style={styles.swipeContainer}>
-      {/* Czerwone tło - pojawia się przy swipe */}
       <Animated.View style={[styles.deleteBackground, { opacity: deleteOpacity }]}>
         <Icon name="delete" size={28} color="#fff" />
         <Text style={styles.deleteBackgroundText}>Usuń</Text>
@@ -138,8 +135,7 @@ const SwipeableAlert = ({ item, onDelete, onSelect, isSelected, selectionMode })
   );
 };
 
-// =============== GŁÓWNY EKRAN ===============
-
+// GŁÓWNY EKRAN
 const AlertsScreen = ({ navigation }) => {
   const [alerts, setAlerts] = useState([]);
   const [summary, setSummary] = useState({ critical_count: 0, info_count: 0, unacknowledged: 0 });
@@ -195,7 +191,6 @@ const AlertsScreen = ({ navigation }) => {
     loadAlerts();
   }, [loadAlerts]);
 
-  // Usuń pojedynczy alert
   const deleteAlert = useCallback(async (alertId) => {
     try {
       const token = await AsyncStorage.getItem('auth_token') ||
@@ -211,7 +206,6 @@ const AlertsScreen = ({ navigation }) => {
     }
   }, []);
 
-  // Usuń zaznaczone
   const deleteSelected = useCallback(() => {
     if (selectedIds.size === 0) return;
 
@@ -283,7 +277,6 @@ const AlertsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
-      {/* Header ze strzałką powrotu */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Icon name="arrow-back" size={24} color={COLORS.text} />
