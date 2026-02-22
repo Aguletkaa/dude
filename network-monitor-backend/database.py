@@ -6,7 +6,6 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import List, Dict, Optional
 
-# =============== HELPER FUNCTIONS ===============
 def parse_uptime_to_seconds(uptime_str):
     """Convert uptime string like '1222d 14h 21m' to seconds"""
     if not uptime_str or not isinstance(uptime_str, str):
@@ -30,16 +29,14 @@ def parse_uptime_to_seconds(uptime_str):
     except:
         return None
 
-# =============== CONFIG ===============
 DB_CONFIG = {
     'host': 'localhost',
-    'port': 5433,  # ZMIEŃ NA 5432 jeśli używasz standardowego portu
+    'port': 5433, 
     'dbname': 'network_monitor',
     'user': 'postgres',
-    'password': '4031'  # TWOJE HASŁO
+    'password': '4031' 
 }
 
-# =============== CONNECTION ===============
 @contextmanager
 def get_db():
     """Context manager for database connection"""
@@ -53,7 +50,6 @@ def get_db():
     finally:
         conn.close()
 
-# =============== DEVICES ===============
 def sync_device(device_data: Dict) -> None:
     """Sync device info to database (insert or update)"""
     with get_db() as conn:
@@ -71,7 +67,6 @@ def sync_device(device_data: Dict) -> None:
                 last_seen = NOW()
         """, device_data)
 
-# =============== DEVICE HISTORY ===============
 def save_device_metrics(device_id: int, metrics: Dict) -> None:
     """Save device metrics to history"""
     with get_db() as conn:
@@ -111,7 +106,6 @@ def save_device_metrics(device_id: int, metrics: Dict) -> None:
             'metrics_source': metrics.get('metrics_source', 'unknown')
         })
 
-# =============== ALERTS ===============
 def create_alert(device_id: int, severity: str, alert_type: str, message: str, context: Dict = None) -> int:
     """Create new alert"""
     with get_db() as conn:
@@ -181,7 +175,6 @@ def delete_alert(alert_id: int) -> bool:
         result = cursor.fetchone()
         return result is not None
     
-# =============== STATISTICS ===============
 def get_device_stats_24h(device_id: int) -> Dict:
     """Get device statistics for last 24 hours"""
     with get_db() as conn:
@@ -203,7 +196,6 @@ def get_latest_device_status(device_id: int) -> Optional[Dict]:
         """, (device_id,))
         return cursor.fetchone()
 
-# =============== CHARTS DATA ===============
 def get_device_metrics_history(device_id: int, hours: int = 24) -> List[Dict]:
     """Get device metrics for charts"""
     with get_db() as conn:
@@ -224,7 +216,6 @@ def get_device_metrics_history(device_id: int, hours: int = 24) -> List[Dict]:
         """, (device_id, hours))
         return cursor.fetchall()
 
-# =============== TEST ===============
 def test_connection():
     """Test database connection"""
     try:

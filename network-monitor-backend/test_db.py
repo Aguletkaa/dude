@@ -11,14 +11,12 @@ try:
     
     cursor = conn.cursor()
     
-    # Test query
     cursor.execute("SELECT COUNT(*) FROM users")
     count = cursor.fetchone()[0]
     
     print(f"SUCCESS! Database connected.")
     print(f"Users in database: {count}")
     
-    # Show tables
     cursor.execute("""
         SELECT table_name 
         FROM information_schema.tables 

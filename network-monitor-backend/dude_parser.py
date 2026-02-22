@@ -42,10 +42,8 @@ class DudeParser:
 
                 ip = all_ips[0]
 
-                # Szukaj nazwy - bierz WSZYSTKIE słowa
                 names = re.findall(r'[A-Z][A-Za-z0-9_\-]{2,}', text)
 
-                # Filtruj niedozwolone nazwy i nazwy które wyglądają jak IP
                 excluded_names = ['admin', 'admind', 'public']
                 valid_names = [
                     n for n in names
@@ -55,7 +53,6 @@ class DudeParser:
 
                 name = valid_names[0] if valid_names else f"Device_{obj_id}"
 
-                # Typ urządzenia
                 device_type = "unknown"
                 if "AP_" in name or "ap_" in name.lower():
                     device_type = "access_point"
@@ -120,17 +117,11 @@ class DudeParser:
 
         conn.close()
 
-        # ============================================================
-        # DEDUPLIKACJA PO IP
-        # Dla każdego IP zachowaj tylko urządzenie z najlepszą nazwą
-        # (preferuj nazwę opisową nad "Device_XXXXX" lub samym IP)
-        # ============================================================
         seen_ips = {}
         for device in devices:
             ip = device['ip']
             name = device['name']
 
-            # Oceń jakość nazwy: 2 = opisowa, 1 = Device_ID, 0 = sam IP
             def name_quality(n):
                 if re.match(r'^\d+\.\d+\.\d+\.\d+$', n):
                     return 0
@@ -143,13 +134,11 @@ class DudeParser:
             else:
                 existing_quality = name_quality(seen_ips[ip]['name'])
                 new_quality = name_quality(name)
-                # Zastąp jeśli nowa nazwa jest lepsza
                 if new_quality > existing_quality:
                     seen_ips[ip] = device
 
         deduplicated = list(seen_ips.values())
 
-        # Wyklucz urządzenia z nieznanych sieci
         EXCLUDED_IPS = ['192.168.87.88']
         deduplicated = [d for d in deduplicated if d['ip'] not in EXCLUDED_IPS]
 
@@ -279,6 +268,6 @@ if __name__ == "__main__":
         print()
 
     sorted_devices = sorted(devices, key=lambda x: x['outageCount'], reverse=True)
-    print("\n🔥 Top 5 urządzeń z największą liczbą awarii:")
+    print("\n Top 5 urządzeń z największą liczbą awarii:")
     for device in sorted_devices[:5]:
         print(f"   {device['name']} ({device['ip']}): {device['outageCount']} awarii")

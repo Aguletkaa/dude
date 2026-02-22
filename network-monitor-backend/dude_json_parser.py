@@ -55,7 +55,6 @@ class DudeJSONParser:
             
             connections = []
             for element in self.data['networkMapElement']:
-                # Tylko połączenia (type = 1)
                 if element.get('type') == 1:
                     link_from = element.get('linkFrom')
                     link_to = element.get('linkTo')
@@ -89,10 +88,10 @@ if __name__ == "__main__":
     print(f"✅ Znaleziono {len(connections)} połączeń\n")
     
     # Pokaż pierwsze 10 pozycji
-    print("📍 Pierwsze 10 urządzeń na mapie:\n")
+    print("Pierwsze 10 urządzeń na mapie:\n")
     for item in layout[:10]:
         print(f"Device ID {item['device_id']}: X={item['x']}, Y={item['y']}, MapID={item['map_id']}")
     
-    print(f"\n🔗 Pierwsze 5 połączeń:\n")
+    print(f"\nPierwsze 5 połączeń:\n")
     for conn in connections[:5]:
         print(f"Połączenie: {conn['from_id']} → {conn['to_id']}")

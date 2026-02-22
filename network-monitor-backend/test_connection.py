@@ -1,6 +1,5 @@
 import psycopg
 
-# Spróbuj bez hasła
 try:
     print("Trying connection without password...")
     conn = psycopg.connect(
@@ -14,7 +13,6 @@ try:
 except Exception as e:
     print(f"Failed: {e}")
 
-# Spróbuj z pustym hasłem
 try:
     print("\nTrying with empty password...")
     conn = psycopg.connect(
@@ -29,5 +27,4 @@ try:
 except Exception as e:
     print(f"Failed: {e}")
 
-# Sprawdź co jest w docker-compose
 print("\nCheck your docker-compose.yml - what is POSTGRES_PASSWORD?")

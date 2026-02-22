@@ -1,6 +1,5 @@
 """
 Ubiquiti SSH Client - Pobieranie metryk przez SSH
-PEŁNA WERSJA - wszystkie metryki z mca-status
 """
 
 import paramiko
@@ -44,16 +43,14 @@ class UbiquitiSSHClient:
     def get_metrics(self, host: str, debug: bool = False) -> Dict:
         """Pobierz WSZYSTKIE metryki z urządzenia Ubiquiti przez SSH"""
         metrics = {
-            # Podstawowe
             'cpu': 0,
             'memory': 0,
             'uptime': None,
             'uptime_seconds': 0,
             
-            # Wireless
             'connections': 0,
             'signal': None,           # Signal strength (dBm)
-            'rssi': None,             # RSSI (może być to samo co signal)
+            'rssi': None,             # RSSI
             'tx_power': None,         # TX Power (dBm)
             'noise_floor': None,      # Noise floor (dBm)
             'ccq': None,              # Client Connection Quality (%)
@@ -66,7 +63,7 @@ class UbiquitiSSHClient:
             
             # Identyfikacja
             'mac_address': None,      # AP MAC
-            'model': None,            # Device Model (np. Rocket M5)
+            'model': None,            # Device Model
             'version': None,          # Firmware version
             'device_name': None,      # Device Name
             'ssid': None,             # SSID
@@ -80,7 +77,6 @@ class UbiquitiSSHClient:
             'lan_speed': None,        # LAN0 speed
         }
         
-        # Komenda mca-status pokazuje wszystkie metryki
         output = self._execute_command(host, 'mca-status')
         
         if not output:
@@ -93,15 +89,11 @@ class UbiquitiSSHClient:
             print(output)
             print("="*60 + "\n")
         
-        # Format: key=value,key2=value2 lub key=value na osobnych liniach
-        # Zamień przecinki na nowe linie dla łatwiejszego parsowania
         output = output.replace(',', '\n')
         
-        # Tymczasowe zmienne
         mem_total = 0
         mem_free = 0
         
-        # Parsuj output
         lines = output.split('\n')
         
         for line in lines:
@@ -115,18 +107,13 @@ class UbiquitiSSHClient:
             value = value.strip()
             
             try:
-                # ============ CPU ============
-                # cpuUsage=97.1 (to jest IDLE, więc użycie = 100 - idle)
                 if key == 'cpuUsage':
-                    # Niektóre wersje firmware pokazują idle, inne użycie
                     cpu_val = float(value)
-                    # Jeśli > 50, prawdopodobnie to idle
                     if cpu_val > 50:
                         metrics['cpu'] = round(100 - cpu_val, 1)
                     else:
                         metrics['cpu'] = round(cpu_val, 1)
                 
-                # ============ MEMORY ============
                 elif key == 'memTotal':
                     mem_total = int(value)
                 elif key == 'memFree':
@@ -135,7 +122,6 @@ class UbiquitiSSHClient:
                         mem_used = mem_total - mem_free
                         metrics['memory'] = round((mem_used / mem_total) * 100, 1)
                 
-                # ============ UPTIME ============
                 elif key == 'uptime':
                     seconds = int(value)
                     metrics['uptime_seconds'] = seconds
@@ -144,32 +130,26 @@ class UbiquitiSSHClient:
                     minutes = (seconds % 3600) // 60
                     metrics['uptime'] = f"{days}d {hours}h {minutes}m"
                 
-                # ============ CONNECTIONS ============
                 elif key == 'wlanConnections':
                     metrics['connections'] = int(value)
                 
-                # ============ SIGNAL / RSSI ============
                 elif key == 'signal':
                     metrics['signal'] = int(value)
-                    metrics['rssi'] = int(value)  # Często to samo
+                    metrics['rssi'] = int(value)  
                 elif key == 'rssi':
                     metrics['rssi'] = int(value)
                 
-                # ============ TX POWER ============
                 elif key == 'txPower':
                     metrics['tx_power'] = int(value)
                 
-                # ============ NOISE FLOOR ============
                 elif key == 'noise' or key == 'noiseFloor':
                     metrics['noise_floor'] = int(value)
                 
-                # ============ CCQ ============
                 elif key == 'ccq':
                     metrics['ccq'] = round(float(value), 1)
                 elif key == 'txCcq':
                     metrics['tx_ccq'] = round(float(value), 1)
                 
-                # ============ airMAX ============
                 elif key == 'wlanPolling':
                     metrics['airmax_enabled'] = value == '1' or value.lower() == 'enabled'
                 elif key == 'wlanPollingQuality':
@@ -177,24 +157,21 @@ class UbiquitiSSHClient:
                 elif key == 'wlanPollingCapacity':
                     metrics['airmax_capacity'] = int(value)
                 
-                # ============ IDENTYFIKACJA ============
                 elif key == 'apMac' or key == 'wlanMac':
                     metrics['mac_address'] = value
                 elif key == 'platform':
                     metrics['model'] = value
                 elif key == 'firmwareVersion':
-                    # Wyciągnij tylko wersję (np. v6.3.14 z XM.ar7240.v6.3.14...)
                     version_match = re.search(r'v[\d.]+', value)
                     if version_match:
                         metrics['version'] = version_match.group()
                     else:
-                        metrics['version'] = value[:20]  # Skróć jeśli za długie
+                        metrics['version'] = value[:20] 
                 elif key == 'hostname' or key == 'deviceName':
                     metrics['device_name'] = value
                 elif key == 'essid' or key == 'wlanSsid':
                     metrics['ssid'] = value
                 
-                # ============ WIRELESS INFO ============
                 elif key == 'freq' or key == 'frequency':
                     metrics['frequency'] = int(value)
                 elif key == 'channel':
@@ -218,7 +195,6 @@ class UbiquitiSSHClient:
                 if debug:
                     print(f"   ⚠️  Parse error for {key}={value}: {e}")
         
-        # Cleanup - usuń tymczasowe pola
         metrics.pop('_mem_total', None)
         
         return metrics
@@ -245,12 +221,11 @@ if __name__ == "__main__":
     
     test_host = '192.168.10.244'
     
-    print(f"\n🔍 Testuję: {test_host}")
+    print(f"\nTestuję: {test_host}")
     
     if client.test_connection(test_host):
         print(f"✅ Połączono!\n")
         
-        # Pokaż surowy output
         print("="*60)
         print("SUROWY OUTPUT mca-status:")
         print("="*60)
@@ -258,13 +233,12 @@ if __name__ == "__main__":
         print(raw)
         print("="*60)
         
-        # Sparsowane metryki
         metrics = client.get_metrics(test_host)
         
-        print("\n📊 SPARSOWANE METRYKI:")
+        print("\nSPARSOWANE METRYKI:")
         print("-"*40)
         
-        print(f"\n🖥️  SYSTEM:")
+        print(f"\n SYSTEM:")
         print(f"   CPU: {metrics['cpu']}%")
         print(f"   Memory: {metrics['memory']}%")
         print(f"   Uptime: {metrics['uptime']}")
@@ -277,19 +251,19 @@ if __name__ == "__main__":
         print(f"   Noise Floor: {metrics['noise_floor']} dBm")
         print(f"   CCQ: {metrics['ccq']}%")
         
-        print(f"\n✨ airMAX:")
+        print(f"\n airMAX:")
         print(f"   Enabled: {metrics['airmax_enabled']}")
         print(f"   Quality: {metrics['airmax_quality']}%")
         print(f"   Capacity: {metrics['airmax_capacity']}%")
         
-        print(f"\n🏷️  IDENTYFIKACJA:")
+        print(f"\n IDENTYFIKACJA:")
         print(f"   Model: {metrics['model']}")
         print(f"   Version: {metrics['version']}")
         print(f"   MAC: {metrics['mac_address']}")
         print(f"   Device Name: {metrics['device_name']}")
         print(f"   SSID: {metrics['ssid']}")
         
-        print(f"\n📻 RADIO:")
+        print(f"\n RADIO:")
         print(f"   Frequency: {metrics['frequency']} MHz")
         print(f"   Channel: {metrics['channel']}")
         print(f"   Width: {metrics['channel_width']} MHz")

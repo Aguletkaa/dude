@@ -1,9 +1,4 @@
--- ============================================
--- SCHEMAT BAZY DANYCH - Network Monitor
--- UTF-8 Compatible Version
--- ============================================
 
--- Drop existing tables
 DROP TABLE IF EXISTS alert_history CASCADE;
 DROP TABLE IF EXISTS device_history CASCADE;
 DROP TABLE IF EXISTS alerts CASCADE;
@@ -11,9 +6,6 @@ DROP TABLE IF EXISTS notification_settings CASCADE;
 DROP TABLE IF EXISTS users CASCADE;
 DROP TABLE IF EXISTS devices CASCADE;
 
--- ============================================
--- TABLE: users
--- ============================================
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -25,9 +17,6 @@ CREATE TABLE users (
     is_active BOOLEAN DEFAULT TRUE
 );
 
--- ============================================
--- TABLE: devices
--- ============================================
 CREATE TABLE devices (
     id INTEGER PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -41,9 +30,6 @@ CREATE TABLE devices (
     notes TEXT
 );
 
--- ============================================
--- TABLE: device_history
--- ============================================
 CREATE TABLE device_history (
     id SERIAL PRIMARY KEY,
     device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
@@ -77,9 +63,6 @@ CREATE TABLE device_history (
 CREATE INDEX idx_device_history_device_time ON device_history(device_id, timestamp DESC);
 CREATE INDEX idx_device_history_timestamp ON device_history(timestamp DESC);
 
--- ============================================
--- TABLE: alerts
--- ============================================
 CREATE TABLE alerts (
     id SERIAL PRIMARY KEY,
     device_id INTEGER REFERENCES devices(id) ON DELETE CASCADE,
@@ -103,9 +86,6 @@ CREATE INDEX idx_alerts_device_severity ON alerts(device_id, severity);
 CREATE INDEX idx_alerts_triggered ON alerts(triggered_at DESC);
 CREATE INDEX idx_alerts_unacknowledged ON alerts(acknowledged) WHERE acknowledged = FALSE;
 
--- ============================================
--- TABLE: alert_history
--- ============================================
 CREATE TABLE alert_history (
     id SERIAL PRIMARY KEY,
     alert_id INTEGER REFERENCES alerts(id) ON DELETE CASCADE,
@@ -117,9 +97,6 @@ CREATE TABLE alert_history (
     error_message TEXT
 );
 
--- ============================================
--- TABLE: notification_settings
--- ============================================
 CREATE TABLE notification_settings (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE UNIQUE,
@@ -141,20 +118,12 @@ CREATE TABLE notification_settings (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- ============================================
--- TEST DATA
--- ============================================
-
 INSERT INTO users (username, email, password_hash, full_name) VALUES
 ('admin', 'admin@networkmonitor.com', 'admin123', 'Administrator'),
 ('user', 'user@networkmonitor.com', 'user123', 'Test User');
 
 INSERT INTO notification_settings (user_id, push_enabled, email_enabled, notification_interval) 
 VALUES (1, TRUE, TRUE, 15);
-
--- ============================================
--- VIEWS
--- ============================================
 
 CREATE OR REPLACE VIEW latest_device_status AS
 SELECT DISTINCT ON (device_id)
@@ -198,7 +167,4 @@ JOIN devices d ON dh.device_id = d.id
 WHERE dh.timestamp >= NOW() - INTERVAL '24 hours'
 GROUP BY dh.device_id, d.name, d.ip;
 
--- ============================================
--- SUCCESS
--- ============================================
 SELECT 'Database schema created successfully!' as status;
